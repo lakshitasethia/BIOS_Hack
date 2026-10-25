@@ -46,7 +46,7 @@ const prog = (t: number, [a, b]: readonly [number, number]) => clamp01((t - a) /
 const outExpo = (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
 const inOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-function notch(edge: "bottom" | "top", d: number) {
+export function notch(edge: "bottom" | "top", d: number) {
   const L = `${NOTCH_L}%`;
   const R = `${NOTCH_R}%`;
   if (edge === "bottom") {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
+import { TransitionLink } from "@/components/transition/route-transition";
 import { site } from "@/lib/site";
 
 const links = [
@@ -67,9 +68,9 @@ export function Nav() {
         </ul>
 
         <div className="hidden items-center gap-5 md:flex">
-          <Link href="#" className="label focus-ring rounded text-text-muted hover:text-text group-data-light/nav:text-black/60 group-data-light/nav:hover:text-black">
+          <TransitionLink href="/login" className="label focus-ring rounded text-text-muted hover:text-text group-data-light/nav:text-black/60 group-data-light/nav:hover:text-black">
             Log in
-          </Link>
+          </TransitionLink>
           <ButtonLink href={site.appHref}>Open control tower</ButtonLink>
         </div>
 

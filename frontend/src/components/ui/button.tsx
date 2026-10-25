@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TransitionLink } from "@/components/transition/route-transition";
 import type { ComponentProps } from "react";
 
 type Variant = "primary" | "secondary" | "ghost";
@@ -18,12 +19,14 @@ const sizes: Record<Size, string> = {
 type ButtonLinkProps = ComponentProps<typeof Link> & { variant?: Variant; size?: Size };
 
 export function ButtonLink({ variant = "primary", size = "md", className = "", children, ...props }: ButtonLinkProps) {
+  // In-app routes play the page transition; anchors and external links behave normally.
+  const Comp = typeof props.href === "string" && props.href.startsWith("/") ? TransitionLink : Link;
   return (
-    <Link
+    <Comp
       {...props}
       className={`label focus-ring inline-flex items-center justify-center gap-2 rounded-lg transition-colors duration-200 ${variants[variant]} ${sizes[size]} ${className}`}
     >
       {children}
-    </Link>
+    </Comp>
   );
 }

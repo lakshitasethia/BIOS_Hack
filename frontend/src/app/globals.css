@@ -93,6 +93,14 @@ html.lenis body {
   overflow: hidden;
 }
 
+/* Keep browser-autofilled fields on dark cards from flashing pale blue */
+.dark-autofill input:-webkit-autofill,
+.dark-autofill input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 100px var(--color-deep) inset;
+  -webkit-text-fill-color: #fff;
+  caret-color: #fff;
+}
+
 .no-intro [data-intro] {
   display: none;
 }
