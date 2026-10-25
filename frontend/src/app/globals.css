@@ -44,6 +44,15 @@
   --color-risk-high: #ff5b04;
   --color-risk-critical: #ff5a65;
 
+  /* Landing "paper" palette — light story sections */
+  --color-paper: #f8faf0;
+  --color-paper-bar: #e6e6d1;
+  --color-paper-line: #b5b9a6;
+  --color-lime: #c4ff9d;
+  --color-tan: #e6b360;
+  --color-deep: #0b2a2c;
+  --color-cyan: #7fd4d9;
+
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
