@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { TransitionLink } from "@/components/transition/route-transition";
+import { onAnchorClick } from "@/components/landing/smooth-scroll";
 import type { ComponentProps } from "react";
 
 type Variant = "primary" | "secondary" | "ghost";
@@ -20,10 +23,12 @@ type ButtonLinkProps = ComponentProps<typeof Link> & { variant?: Variant; size?:
 
 export function ButtonLink({ variant = "primary", size = "md", className = "", children, ...props }: ButtonLinkProps) {
   // In-app routes play the page transition; anchors and external links behave normally.
-  const Comp = typeof props.href === "string" && props.href.startsWith("/") ? TransitionLink : Link;
+  const href = typeof props.href === "string" ? props.href : "";
+  const Comp = href.startsWith("/") ? TransitionLink : Link;
   return (
     <Comp
       {...props}
+      onClick={href.startsWith("#") ? onAnchorClick : props.onClick}
       className={`label focus-ring inline-flex items-center justify-center gap-2 rounded-lg transition-colors duration-200 ${variants[variant]} ${sizes[size]} ${className}`}
     >
       {children}

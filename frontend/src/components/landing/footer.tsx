@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { site } from "@/lib/site";
+import { onAnchorClick } from "@/components/landing/smooth-scroll";
 
 const LINKS = [
   { label: "Platform", href: "#platform" },
@@ -108,7 +109,7 @@ export function Footer() {
           <ul className="flex flex-wrap justify-between gap-x-8 gap-y-3">
             {LINKS.map((l) => (
               <li key={l.label}>
-                <a href={l.href} className="label focus-ring rounded text-white/75 hover:text-white">
+                <a href={l.href} onClick={onAnchorClick} className="label focus-ring rounded text-white/75 hover:text-white">
                   {l.label}
                 </a>
               </li>

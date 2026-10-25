@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { TransitionLink } from "@/components/transition/route-transition";
+import { onAnchorClick } from "@/components/landing/smooth-scroll";
 import { site } from "@/lib/site";
 
+// In page order, so the bar reads like the story it jumps through.
 const links = [
-  { label: "Platform", href: "#platform" },
   { label: "How it works", href: "#how-it-works" },
   { label: "Impact", href: "#impact" },
+  { label: "Platform", href: "#platform" },
   { label: "Scenarios", href: "#scenarios" },
 ];
 
@@ -60,7 +62,7 @@ export function Nav() {
         <ul className="hidden items-center gap-8 md:flex">
           {links.map((l) => (
             <li key={l.href}>
-              <a href={l.href} className="label focus-ring rounded text-text-muted transition-colors hover:text-text group-data-light/nav:text-black/60 group-data-light/nav:hover:text-black">
+              <a href={l.href} onClick={onAnchorClick} className="label focus-ring rounded text-text-muted transition-colors hover:text-text group-data-light/nav:text-black/60 group-data-light/nav:hover:text-black">
                 {l.label}
               </a>
             </li>
@@ -89,7 +91,14 @@ export function Nav() {
           <ul className="flex flex-col gap-4">
             {links.map((l) => (
               <li key={l.href}>
-                <a href={l.href} onClick={() => setOpen(false)} className="label text-text-muted">
+                <a
+                  href={l.href}
+                  onClick={(e) => {
+                    setOpen(false);
+                    onAnchorClick(e);
+                  }}
+                  className="label text-text-muted"
+                >
                   {l.label}
                 </a>
               </li>
