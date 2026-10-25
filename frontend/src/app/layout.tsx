@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: `${site.name} — ${site.tagline}`,
+  title: site.name,
   description:
     "Detect supply-chain disruptions from traffic, weather, supplier delays and inventory shortages, and get ranked route and action recommendations.",
 };

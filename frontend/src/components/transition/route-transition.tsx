@@ -138,9 +138,11 @@ export function RouteTransition() {
 
 function TransitionMark() {
   return (
-    <svg width="26" height="26" viewBox="0 0 22 22" className="absolute bottom-6 left-1/2 -translate-x-1/2" aria-hidden>
-      <rect x="1" y="1" width="20" height="20" rx="5" fill="var(--color-night-900)" />
-      <path d="M6 15 L10 7 L13 12 L16 7" stroke="var(--color-signal-500)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="26" height="26" viewBox="0 0 24 24" className="absolute bottom-6 left-1/2 -translate-x-1/2" aria-hidden>
+      <path d="M12 2 L21.5 7.5 V16.5 L12 22 L2.5 16.5 V7.5 Z" fill="var(--color-night-900)" rx="3" />
+      <path d="M7 9 L12 17 L17 9" stroke="var(--color-signal-500)" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="7" cy="9" r="1.3" fill="var(--color-signal-500)" />
+      <circle cx="17" cy="9" r="1.3" fill="var(--color-signal-500)" />
     </svg>
   );
 }

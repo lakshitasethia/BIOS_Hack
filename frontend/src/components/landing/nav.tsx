@@ -19,9 +19,11 @@ const links = [
 export function Logo() {
   return (
     <Link href="/" className="focus-ring flex items-center gap-2.5 rounded-md">
-      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
-        <rect x="1" y="1" width="20" height="20" rx="5" fill="var(--accent)" />
-        <path d="M6 15 L10 7 L13 12 L16 7" stroke="var(--on-accent)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+        <path d="M12 2 L21.5 7.5 V16.5 L12 22 L2.5 16.5 V7.5 Z" fill="var(--accent)" rx="3" />
+        <path d="M7 9 L12 17 L17 9" stroke="var(--on-accent)" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="7" cy="9" r="1.3" fill="var(--on-accent)" />
+        <circle cx="17" cy="9" r="1.3" fill="var(--on-accent)" />
       </svg>
       <span className="text-[1.0625rem] font-medium tracking-tight">{site.name}</span>
     </Link>
