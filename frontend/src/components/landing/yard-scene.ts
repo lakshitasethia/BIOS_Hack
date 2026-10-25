@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.js";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 /*
  * The hero's 3D yard (DESIGN.md §7.4), driven entirely by scroll progress p ∈ [0, 1]:
@@ -96,12 +95,16 @@ function pointsMaterial(U: Uniforms, fade: { value: number }, size = 2.2) {
     uniforms: { uConvert: U.uConvert, uOrigin: U.uOrigin, uFade: fade, uTime: U.uTime, uPixelRatio: U.uPixelRatio, uSize: { value: size } },
     vertexShader: /* glsl */ `
       attribute float aRand;
-      uniform float uTime, uPixelRatio, uSize;
+      uniform float uTime, uPixelRatio, uSize, uFade;
       varying vec3 vWp;
       varying float vTw;
       void main() {
+        // as a layer fades, its dust drifts apart and upward — the wireframe dismantles
+        float drift = (1.0 - uFade) * (0.6 + aRand * 1.4) * 5.0;
+        vec3 dir = normalize(vec3(sin(aRand * 91.7), 0.6 + fract(aRand * 13.3), cos(aRand * 47.1)));
+        vec3 p = position + dir * drift;
         vWp = (modelMatrix * vec4(position, 1.0)).xyz;
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
         vTw = 0.55 + 0.45 * sin(uTime * (1.5 + aRand * 2.5) + aRand * 40.0);
         gl_PointSize = uSize * uPixelRatio * (18.0 / -mv.z) * (0.6 + aRand * 0.8);
         gl_Position = projectionMatrix * mv;
@@ -168,11 +171,6 @@ export class YardScene {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.scene.fog = this.fog;
-    // soft studio reflections so paint and chrome read as real materials
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.35;
-    pmrem.dispose();
 
     // sky dome: lavender → peach → orange at the horizon, fading to black for the twin
     this.sky = new THREE.ShaderMaterial({
@@ -234,8 +232,8 @@ export class YardScene {
     this.buildGround();
     this.buildTruck();
     this.headlight = new THREE.SpotLight("#ffe2b8", 60, 45, 0.5, 0.6, 1.4);
-    this.headlight.position.set(10.6, 1.7, 0);
-    this.headlight.target.position.set(26, 0, 0);
+    this.headlight.position.set(6.7, 1.3, 0);
+    this.headlight.target.position.set(22, 0, 0);
     this.truck.add(this.headlight, this.headlight.target);
     this.buildYard();
     this.buildTrailerFrames();
@@ -243,12 +241,13 @@ export class YardScene {
 
     // camera path, relative to the truck — keyframed by scroll progress
     const keys: [number, [number, number, number], [number, number, number], number][] = [
-      [0.0, [0.3, 2.4, 31], [0.3, 2.3, 0], 30],
-      [0.1, [0.9, 2.7, 29], [0.9, 2.4, 0], 30],
+      [0.0, [-1.8, 2.3, 27], [-1.8, 2.2, 0], 30],
+      [0.1, [-1.2, 2.6, 25], [-1.2, 2.3, 0], 30],
       [0.26, [15, 13, 27], [0, 1.6, 0], 34],
       [0.42, [24, 25, 31], [2, 0, -5], 36],
-      [0.58, [-24, 17, 11], [0, 2, 0], 34],
-      [0.72, [-21, 13, 12], [0.5, 1.8, 0], 34],
+      [0.56, [22, 15, 19], [-1, 1.8, 0], 34],
+      [0.7, [18.5, 12.5, 16], [-2.5, 1.8, 0], 33],
+      [0.79, [3, 22, 9], [0, 1, 0], 36],
       [0.86, [-11, 16, 2.2], [5, 0.8, 0], 36],
       [1.0, [-5, 12.5, 1.4], [6.5, 0.4, 0], 34],
     ];
@@ -332,112 +331,61 @@ export class YardScene {
 
   private buildTruck() {
     const T = this.truck;
-    const M = (color: string, roughness: number, metalness: number) => solidMaterial(this.U, { color, roughness, metalness });
-    const trailerMat = M("#857a70", 0.5, 0.35);
-    const railMat = M("#5d544d", 0.6, 0.4);
-    const paintMat = M("#dcd6cd", 0.28, 0.55);
-    const chromeMat = M("#c9ccd0", 0.18, 0.95);
-    const darkMat = M("#141110", 0.85, 0.2);
-    const glassMat = M("#151a20", 0.08, 0.7);
-    const tyreMat = M("#0c0b0a", 0.95, 0);
+    const trailerMat = solidMaterial(this.U, { color: "#8f8378", roughness: 0.55, metalness: 0.3 });
+    const cabMat = solidMaterial(this.U, { color: "#d9d2c8", roughness: 0.35, metalness: 0.45 });
+    const darkMat = solidMaterial(this.U, { color: "#16110e", roughness: 0.9 });
+    const glassMat = solidMaterial(this.U, { color: "#1b1f25", roughness: 0.1, metalness: 0.6 });
+    const tyreMat = solidMaterial(this.U, { color: "#0d0b0a", roughness: 0.95 });
 
-    const add = (mesh: THREE.Mesh, points = 0, edge = 25) => {
-      T.add(this.withTwin(mesh, points, true, edge));
-      return mesh;
-    };
-    const boxAt = (w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material, points = 0) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-      m.position.set(x, y, z);
-      return add(m, points);
-    };
+    const trailer = new THREE.Mesh(new THREE.BoxGeometry(13.6, 2.7, 2.5), trailerMat);
+    trailer.position.set(-3.2, 2.65, 0);
+    T.add(this.withTwin(trailer, 4200, true));
+    const chassis = new THREE.Mesh(new THREE.BoxGeometry(13, 0.28, 1.1), darkMat);
+    chassis.position.set(-3.4, 1.15, 0);
+    T.add(this.withTwin(chassis, 0, true));
 
-    // ---- 13.6 m van trailer: body, rails, aero side skirts, marker lights, rear door frame
-    boxAt(13.6, 2.68, 2.5, -3.2, 2.66, 0, trailerMat, 4200);
-    boxAt(13.62, 0.14, 2.53, -3.2, 1.33, 0, railMat);
-    boxAt(13.62, 0.1, 2.53, -3.2, 3.98, 0, railMat);
-    for (const z of [-1.2, 1.2]) boxAt(7.6, 0.55, 0.04, -2.6, 0.98, z, darkMat);
-    boxAt(12.4, 0.26, 1.0, -3.6, 1.12, 0, darkMat);
-    for (const x of [-9.98]) boxAt(0.06, 2.6, 0.12, x, 2.66, 0, railMat);
-    for (const x of [-9.95, 3.55]) {
-      for (const z of [-1.26, 1.26]) {
-        const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.07, 0.04), this.glow("#ffc58a"));
-        lamp.position.set(x, 3.9, z);
-        T.add(lamp);
-      }
-    }
-    for (const x of [-9.3, -6.8]) for (const z of [-1.08, 1.08]) boxAt(0.04, 0.55, 0.5, x, 0.55, z, darkMat);
-
-    // ---- conventional tractor: one sculpted side profile — sleeper, raked screen, long hood
+    // cab-over tractor: extruded aero side profile
     const s = new THREE.Shape();
-    s.moveTo(4.0, 1.0);
-    s.lineTo(4.0, 3.72);
-    s.quadraticCurveTo(4.02, 4.06, 4.5, 4.08);
-    s.lineTo(6.1, 4.08);
-    s.quadraticCurveTo(6.55, 4.06, 6.95, 3.42);
-    s.lineTo(7.05, 3.38);
-    s.lineTo(7.85, 2.58);
-    s.quadraticCurveTo(8.0, 2.5, 8.3, 2.48);
-    s.lineTo(9.95, 2.3);
-    s.quadraticCurveTo(10.45, 2.25, 10.5, 1.85);
-    s.lineTo(10.5, 1.0);
-    s.lineTo(4.0, 1.0);
-    const body = new THREE.ExtrudeGeometry(s, { depth: 2.36, bevelEnabled: true, bevelSize: 0.08, bevelThickness: 0.08, bevelSegments: 3, curveSegments: 14 });
-    body.translate(0, 0, -1.18);
-    add(new THREE.Mesh(body, paintMat), 2600, 32);
-
-    // glass: raked windscreen, door and sleeper windows
-    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.1, 2.2), glassMat);
-    screen.position.set(7.46, 2.98, 0);
-    screen.rotation.z = -Math.PI / 4.2;
-    T.add(screen);
+    s.moveTo(0, 0);
+    s.lineTo(0, 2.55);
+    s.quadraticCurveTo(0.1, 3.1, 0.8, 3.15);
+    s.lineTo(1.9, 3.15);
+    s.quadraticCurveTo(2.4, 3.1, 2.48, 2.6);
+    s.lineTo(2.62, 1.3);
+    s.lineTo(2.62, 0);
+    s.lineTo(0, 0);
+    const cabGeo = new THREE.ExtrudeGeometry(s, { depth: 2.45, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 2, curveSegments: 10 });
+    cabGeo.translate(0, 0, -1.225);
+    const cab = new THREE.Mesh(cabGeo, cabMat);
+    cab.position.set(3.9, 0.95, 0);
+    T.add(this.withTwin(cab, 2200, true, 30));
+    const windscreen = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.0, 2.2), glassMat);
+    windscreen.position.set(6.47, 3.15, 0);
+    windscreen.rotation.z = -0.12;
+    T.add(windscreen);
     for (const z of [-1.27, 1.27]) {
-      boxAt(0.7, 0.62, 0.03, 7.18, 2.92, z, glassMat);
-      boxAt(0.5, 0.32, 0.03, 5.2, 3.35, z, glassMat);
-      boxAt(0.03, 1.5, 0.03, 6.62, 2.1, z * 1.002, darkMat); // door seam
+      const win = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.04), glassMat);
+      win.position.set(5.3, 3.2, z);
+      T.add(win);
     }
-
-    // front end: chrome grille, bumper, headlamps
-    boxAt(0.06, 1.0, 1.3, 10.56, 1.62, 0, chromeMat);
-    for (let i = 0; i < 6; i++) boxAt(0.02, 0.04, 1.2, 10.6, 1.2 + i * 0.16, 0, darkMat);
-    boxAt(0.32, 0.42, 2.56, 10.66, 0.82, 0, chromeMat);
-    for (const z of [-0.98, 0.98]) {
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.22, 0.42), this.glow("#fff4de"));
-      lamp.position.set(10.52, 1.72, z);
+    const bumper = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.45, 2.5), darkMat);
+    bumper.position.set(6.62, 0.85, 0);
+    T.add(this.withTwin(bumper, 0, true));
+    for (const z of [-0.95, 0.95]) {
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.4), this.glow("#fff3dc"));
+      lamp.position.set(6.66, 1.25, z);
       T.add(lamp);
     }
 
-    // fenders over the steer axle, fuel tanks, steps, exhaust stacks, mirrors, fifth wheel
-    for (const z of [-1.12, 1.12]) {
-      const fender = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.42, 20, 1, true, 0, Math.PI), paintMat);
-      fender.rotation.x = Math.PI / 2;
-      fender.position.set(9.55, 0.62, z);
-      add(fender, 0, 40);
-      const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 1.5, 20), chromeMat);
-      tank.rotation.z = Math.PI / 2;
-      tank.position.set(6.6, 0.85, z * 1.05);
-      add(tank, 80, 40);
-      boxAt(0.5, 0.06, 0.32, 7.85, 0.75, z * 1.1, chromeMat);
-      const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 3.3, 14), chromeMat);
-      stack.position.set(6.25, 2.75, z * 1.15);
-      add(stack, 0, 40);
-      boxAt(0.08, 0.5, 0.18, 8.05, 2.75, z * 1.38, darkMat);
-      boxAt(0.36, 0.03, 0.03, 8.05, 2.6, z * 1.27, chromeMat);
-    }
-    boxAt(1.6, 0.18, 1.6, 3.2, 1.1, 0, darkMat);
-    boxAt(7.2, 0.22, 0.9, 6.9, 0.78, 0, darkMat);
-
-    // wheels: tyre + chrome rim + hub, spun by distance travelled
-    const tyreGeo = new THREE.CylinderGeometry(0.52, 0.52, 0.34, 26).rotateX(Math.PI / 2);
-    const rimGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.36, 20).rotateX(Math.PI / 2);
-    const hubGeo = new THREE.CylinderGeometry(0.11, 0.11, 0.4, 10).rotateX(Math.PI / 2);
-    for (const x of [-8.6, -7.4, 2.7, 3.9, 9.55]) {
+    // wheels: twelve tyres, spun by distance travelled
+    const wheelGeo = new THREE.CylinderGeometry(0.52, 0.52, 0.34, 22);
+    wheelGeo.rotateX(Math.PI / 2);
+    for (const x of [-8.6, -7.4, 3.9, 5.0, 6.0]) {
       for (const z of [-1.08, 1.08]) {
-        const wheel = new THREE.Mesh(tyreGeo, tyreMat);
-        wheel.position.set(x, 0.52, z);
-        add(wheel, 110, 40);
-        wheel.add(this.withTwin(new THREE.Mesh(rimGeo, chromeMat), 0, true, 40));
-        wheel.add(new THREE.Mesh(hubGeo, darkMat));
-        this.wheels.push(wheel);
+        const w = new THREE.Mesh(wheelGeo, tyreMat);
+        w.position.set(x, 0.52, z);
+        T.add(this.withTwin(w, 120, true, 40));
+        this.wheels.push(w);
       }
     }
     this.scene.add(T);
@@ -611,7 +559,7 @@ export class YardScene {
     const dist = 46 * span(p, 0.03, 0.7);
     this.truck.position.x = dist;
     this.wheels.forEach((w) => (w.rotation.z = -dist / 0.52));
-    this.U.uOrigin.value.set(dist + 1, 0);
+    this.U.uOrigin.value.set(dist - 2, 0);
 
     // the yard rises out of the ground, left to right
     for (const r of this.risers) {
@@ -632,7 +580,6 @@ export class YardScene {
     this.sun.intensity = 2.2 * (1 - night);
     this.headlight.intensity = 60 * (1 - night);
     this.yardFade.value = 1 - smooth(span(p, 0.62, 0.72));
-    this.scene.environmentIntensity = 0.35 * (1 - night);
     // finale: the truck thins away as the smoke tendrils gather
     this.truckFade.value = 1 - smooth(span(p, 0.88, 0.96));
     const smokeIn = smooth(span(p, 0.85, 0.95));
