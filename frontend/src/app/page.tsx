@@ -3,6 +3,8 @@ import { Hero } from "@/components/landing/hero";
 import { SignalField } from "@/components/landing/signal-field";
 import { Platform } from "@/components/landing/platform";
 import { Impact } from "@/components/landing/impact";
+import { Responses } from "@/components/landing/responses";
+import { Scenarios } from "@/components/landing/scenarios";
 
 export default function Home() {
   return (
@@ -13,6 +15,8 @@ export default function Home() {
         <SignalField />
         <Platform />
         <Impact />
+        <Responses />
+        <Scenarios />
       </main>
     </>
   );

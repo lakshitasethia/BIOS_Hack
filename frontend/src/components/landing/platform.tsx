@@ -7,7 +7,7 @@ const FEATURES = [
   {
     title: "Detect every disruption",
     body: "Weather alerts, traffic, port queues, supplier ETAs and stock levels stream into one live view of your network.",
-    tag: ["Signal", "IMD red alert · NH-48 corridor"],
+    tag: ["Signal", "IMD red alert · Khandala ghat"],
   },
   {
     title: "Assess the real impact",
@@ -17,7 +17,7 @@ const FEATURES = [
   {
     title: "Recommend the best response",
     body: "Ranked reroutes, stock transfers and supplier switches, each with the time, cost and risk trade-off spelled out.",
-    tag: ["Option A · Recommended", "Reroute via NH-52 · +2h 10m"],
+    tag: ["Option A · Recommended", "Reroute via old NH-48 · +1h 40m"],
   },
   {
     title: "Approve and track in one click",

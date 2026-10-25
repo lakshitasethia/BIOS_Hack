@@ -105,8 +105,8 @@ function AlertPreview() {
         <span className="label rounded bg-accent/15 px-2 py-1 text-accent">● At risk</span>
       </div>
 
-      <p className="mt-4 text-[1.0625rem] font-medium leading-snug">Heavy rain on NH-48, Vadodara – Surat</p>
-      <p className="mt-1 font-mono text-[0.8125rem] text-text-subtle">Detected 4m ago · IMD red alert</p>
+      <p className="mt-4 text-[1.0625rem] font-medium leading-snug">Landslide risk on Mumbai – Pune Expressway</p>
+      <p className="mt-1 font-mono text-[0.8125rem] text-text-subtle">Detected 4m ago · IMD red alert, Khandala</p>
 
       <dl className="mt-5 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-border bg-border">
         {[
@@ -124,9 +124,9 @@ function AlertPreview() {
       <div className="mt-4 rounded-lg border border-accent/40 bg-accent/[0.07] p-3.5">
         <p className="label text-accent">Recommended</p>
         <p className="mt-1.5 flex items-center gap-2 text-[0.9375rem]">
-          <Route size={15} className="text-tide-300" /> Reroute 4 trucks via NH-52
+          <Route size={15} className="text-tide-300" /> Reroute 4 trucks via old NH-48
         </p>
-        <p className="mt-1 font-mono text-[0.8125rem] text-text-muted">+2h 10m · saves ₹6.2L in penalties</p>
+        <p className="mt-1 font-mono text-[0.8125rem] text-text-muted">+1h 40m · saves ₹6.2L in penalties</p>
       </div>
     </motion.aside>
   );

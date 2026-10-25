@@ -314,15 +314,15 @@ STAGE 2  "A few of them matter"
 STAGE 3  "Traced to impact"
          Each lit bar travels down its own dotted route line (1px dashed, mist 40%),
          curving and crossing the others, to small connector nodes. Short captions
-         appear beside each path: "Heavy rain on NH-48", "Supplier ETA +4 days",
+         appear beside each path: "Landslide risk at Khandala ghat", "Supplier ETA +4 days",
          "Delhi DC below safety stock".
 
 STAGE 4  "One clear decision"
          The paths converge into a single recommendation card that assembles itself:
          ┌───────────────────────────────────────────┐
          │ RECOMMENDED ACTION              AT RISK ● │
-         │ Reroute SHP-1042 via NH-52                │
-         │ +2h 10m · ₹4,200 · saves ₹1.8L in penalty │
+         │ Reroute SHP-1042 via old NH-48            │
+         │ +1h 40m · ₹4,200 · saves ₹1.8L in penalty │
          │ [ APPROVE ]  [ VIEW ALTERNATIVES ]         │
          └───────────────────────────────────────────┘
 ```
@@ -388,7 +388,7 @@ With `prefers-reduced-motion: reduce`:
 ### 8.3 Disruption detail: the decision screen
 This is the most important screen in the product. Top to bottom:
 
-1. **Header:** type icon, title ("Heavy rain: NH-48, Vadodara–Surat"), risk badge, detected time (mono), source (mono label, e.g. `IMD ALERT`).
+1. **Header:** type icon, title ("Landslide risk: Mumbai–Pune Expressway, Khandala ghat"), risk badge, detected time (mono), source (mono label, e.g. `IMD ALERT`).
 2. **Impact summary:** 3 metrics with odometers: **Shipments affected** · **Avg delay** · **Value at risk (₹)**.
 3. **Why we flagged this (evidence):** a short list of signals, each with a source and a confidence bar. Collapsed by default to 3 items.
 4. **Affected:** a compact list of shipments and SKUs, each with its own mini risk badge and ETA delta (`+9h 20m` in signal).
@@ -431,11 +431,11 @@ This is the most important screen in the product. Top to bottom:
 
 ### 9.1 Voice
 **Calm, specific, decisive.** Like a great operations lead on the radio.
-- ✅ "Heavy rain on NH-48 will delay 6 shipments by ~9h. Reroute 4 via NH-52."
+- ✅ "A landslide on the Mumbai–Pune Expressway will delay 6 shipments by ~7h. Reroute 4 via old NH-48."
 - ❌ "Uh-oh! Weather issues detected 🌧️ Click here to learn more!"
 
 ### 9.2 Rules
-- Lead with impact, then cause: "**6 shipments delayed** · heavy rain, NH-48".
+- Lead with impact, then cause: "**6 shipments delayed** · landslide, Mumbai–Pune Expressway".
 - Always quantify: hours, ₹, units, %. Use the Indian number format (₹1,80,000 or ₹1.8L).
 - Times in IST, 24h, mono: `14:20 IST`. Relative times in the feed: `4m ago`.
 - IDs: `SHP-1042`, `WH-DEL-02`, `SUP-CHN-11`.
