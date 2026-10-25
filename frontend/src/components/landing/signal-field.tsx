@@ -56,7 +56,8 @@ const DOCK = { x: SLOT_X + BAR_W / 2, y: H - 10 - BAR_H / 2 };
 // Side panels start beside the mark and slide out into the content edges (clipped there).
 const CONTENT = { left: 126, right: W - 126 };
 const PANEL_W = 264;
-const PANEL_SLIDE = 150;
+const PANEL_SLIDE = 40;
+const PANEL_EASE = { transition: "transform 900ms cubic-bezier(0.16, 1, 0.3, 1)" } as const;
 
 type Rider = {
   home: number;
@@ -97,10 +98,9 @@ const RIDERS: Rider[] = [
   {
     home: 31,
     tone: "orange",
-    lag: 120,
-    arrive: 1060,
+    lag: 40,
     d: (x, y) =>
-      `M${x} ${y} L${x} ${y + 140} C${x} 430, 790 480, 790 640 L790 960 C790 1050, 760 1080, 700 1080 L700 1080 C${DOCK.x} 1080, ${DOCK.x} 1140, ${DOCK.x} 1200 L${DOCK.x} ${DOCK.y}`,
+      `M${x} ${y} L${x} ${y + 140} C${x} 430, 790 480, 790 640 L790 940 C790 1090, ${DOCK.x} 1110, ${DOCK.x} 1230 L${DOCK.x} ${DOCK.y}`,
   },
 ];
 
@@ -153,8 +153,8 @@ function sample(track: Track, v: number) {
   const f = (k - keys[lo]) / span;
   const x = xs[lo] + (xs[hi] - xs[lo]) * f;
   const y = ys[lo] + (ys[hi] - ys[lo]) * f;
-  const a = Math.max(0, lo - 2);
-  const b = Math.min(SAMPLES, hi + 2);
+  const a = Math.max(0, lo - 5);
+  const b = Math.min(SAMPLES, hi + 5);
   const angle = k <= 0 ? 0 : (Math.atan2(ys[b] - ys[a], xs[b] - xs[a]) * 180) / Math.PI - 90;
   return { x, y, angle };
 }
@@ -185,6 +185,8 @@ export function SignalField() {
     let current = 0;
     let target = 0;
     let raf = 0;
+    let last = performance.now();
+    let wasDocked = false;
 
     // Scroll line: the stage's y (in viewBox units) currently sitting at 58% of the viewport.
     const measure = () => {
@@ -217,12 +219,14 @@ export function SignalField() {
         });
       });
 
-      // Mark warms to orange as the rider docks; side panels part to make room.
-      const dock = clamp01(1 - orangeLeft / 40);
-      const part = clamp01(1 - orangeLeft / 360);
-      if (markGlowRef.current) markGlowRef.current.style.opacity = String(dock);
-      panelLeftRef.current?.setAttribute("transform", `translate(${-PANEL_SLIDE * part} 0)`);
-      panelRightRef.current?.setAttribute("transform", `translate(${PANEL_SLIDE * part} 0)`);
+      // Once the rider docks, the mark warms to orange and the panels ease apart (timed, not scrubbed).
+      const docked = orangeLeft < 14;
+      if (docked !== wasDocked) {
+        wasDocked = docked;
+        if (markGlowRef.current) markGlowRef.current.style.opacity = docked ? "1" : "0";
+        if (panelLeftRef.current) panelLeftRef.current.style.transform = `translateX(${docked ? -PANEL_SLIDE : 0}px)`;
+        if (panelRightRef.current) panelRightRef.current.style.transform = `translateX(${docked ? PANEL_SLIDE : 0}px)`;
+      }
     };
 
     if (reduced) {
@@ -230,9 +234,12 @@ export function SignalField() {
       return;
     }
 
-    const tick = () => {
+    const tick = (now: number) => {
+      // Frame-rate independent easing toward the scroll position.
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
       const diff = target - current;
-      current = Math.abs(diff) < 0.1 ? target : current + diff * 0.14;
+      current = Math.abs(diff) < 0.1 ? target : current + diff * (1 - Math.exp(-dt * 9));
       render(current);
       raf = requestAnimationFrame(tick);
     };
@@ -321,16 +328,16 @@ export function SignalField() {
             </clipPath>
           </defs>
           <g clipPath="url(#signal-content)">
-            <g ref={panelLeftRef}>
+            <g ref={panelLeftRef} style={PANEL_EASE}>
               <TruckPanel x={MARK_X - 120 - PANEL_W} />
             </g>
-            <g ref={panelRightRef}>
+            <g ref={panelRightRef} style={PANEL_EASE}>
               <TruckPanel x={ZIG_X + 122 + 120} mirrored />
             </g>
           </g>
 
           <Mark fill={C.tan} />
-          <g ref={markGlowRef} style={{ opacity: 0 }}>
+          <g ref={markGlowRef} style={{ opacity: 0, transition: "opacity 600ms cubic-bezier(0.16, 1, 0.3, 1)" }}>
             <Mark fill={C.orange} />
           </g>
 
