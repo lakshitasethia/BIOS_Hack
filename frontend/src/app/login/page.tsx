@@ -27,11 +27,9 @@ export default function LoginPage() {
       <div className="mx-auto grid min-h-[100svh] max-w-7xl items-center gap-12 px-5 py-20 md:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-20">
         <div>
           <div className="flex items-center gap-3">
-            <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden>
-              <path d="M12 2 L21.5 7.5 V16.5 L12 22 L2.5 16.5 V7.5 Z" fill="#0b2a2c" rx="3" />
-              <path d="M7 9 L12 17 L17 9" stroke="var(--color-signal-500)" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="7" cy="9" r="1.3" fill="var(--color-signal-500)" />
-              <circle cx="17" cy="9" r="1.3" fill="var(--color-signal-500)" />
+            <svg width="34" height="34" viewBox="0 0 22 22" aria-hidden>
+              <rect x="1" y="1" width="20" height="20" rx="5" fill="#0b2a2c" />
+              <path d="M6 15 L10 7 L13 12 L16 7" stroke="var(--color-signal-500)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span className="text-[2rem] font-semibold tracking-[-0.03em]">{site.name}</span>
           </div>

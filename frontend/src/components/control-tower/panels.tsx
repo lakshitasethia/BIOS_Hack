@@ -49,11 +49,9 @@ export function TopBar({ scenarios, onFire, onReset }: { scenarios: ScenarioInfo
     <header className="relative z-20 flex h-14 shrink-0 items-center justify-between border-b border-border bg-night-900 px-4">
       <div className="flex items-center gap-6">
         <TransitionLink href="/" className="focus-ring flex items-center gap-2.5 rounded-md">
-          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
-            <path d="M12 2 L21.5 7.5 V16.5 L12 22 L2.5 16.5 V7.5 Z" fill="var(--accent)" rx="3" />
-            <path d="M7 9 L12 17 L17 9" stroke="var(--on-accent)" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="7" cy="9" r="1.3" fill="var(--on-accent)" />
-            <circle cx="17" cy="9" r="1.3" fill="var(--on-accent)" />
+          <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden>
+            <rect x="1" y="1" width="20" height="20" rx="5" fill="var(--accent)" />
+            <path d="M6 15 L10 7 L13 12 L16 7" stroke="var(--on-accent)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <span className="text-[1.0625rem] font-medium tracking-tight">{site.name}</span>
         </TransitionLink>
@@ -160,9 +158,8 @@ export function AlertFeed({ s, onSelect }: { s: Snapshot; onSelect: (id: string)
             <li key={d.id} className="mb-2.5 animate-[slidein_400ms_cubic-bezier(0.16,1,0.3,1)]">
               <button
                 onClick={() => onSelect(d.id)}
-                className={`focus-ring relative w-full overflow-hidden rounded-xl border p-4 pl-5 text-left transition-colors hover:border-border-strong ${
-                  d.status === "open" && d.risk !== "watch" ? "border-accent/35 bg-night-850 shadow-[0_0_24px_-10px_rgba(255,91,4,0.5)]" : "border-border bg-night-850/70"
-                }`}
+                className={`focus-ring relative w-full overflow-hidden rounded-xl border p-4 pl-5 text-left transition-colors hover:border-border-strong ${d.status === "open" && d.risk !== "watch" ? "border-accent/35 bg-night-850 shadow-[0_0_24px_-10px_rgba(255,91,4,0.5)]" : "border-border bg-night-850/70"
+                  }`}
               >
                 <span className={`absolute inset-y-0 left-0 w-[3px] ${bar}`} />
                 <div className="flex items-center justify-between gap-3">

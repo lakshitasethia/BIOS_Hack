@@ -18,6 +18,12 @@ export const metadata: Metadata = {
   title: site.name,
   description:
     "Detect supply-chain disruptions from traffic, weather, supplier delays and inventory shortages, and get ranked route and action recommendations.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
