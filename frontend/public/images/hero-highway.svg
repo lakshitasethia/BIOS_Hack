@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1418"/>
+      <stop offset="0.35" stop-color="#16232a"/>
+      <stop offset="0.52" stop-color="#1f3a3f"/>
+      <stop offset="0.6" stop-color="#7a3a1a"/>
+      <stop offset="0.635" stop-color="#ff6a1a"/>
+      <stop offset="0.66" stop-color="#2a1a14"/>
+      <stop offset="1" stop-color="#0b1215"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.42" cy="0.63" r="0.45">
+      <stop offset="0" stop-color="#ff7a33" stop-opacity="0.55"/>
+      <stop offset="0.4" stop-color="#ff5b04" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#ff5b04" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a1714"/>
+      <stop offset="1" stop-color="#22201d"/>
+    </linearGradient>
+    <linearGradient id="storm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1418" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#16232a" stop-opacity="0.2"/>
+    </linearGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="40"/></filter>
+    <filter id="soft"><feGaussianBlur stdDeviation="3"/></filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0"/>
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <rect width="1920" height="1080" fill="url(#sun)"/>
+
+  <!-- storm cell, right -->
+  <g filter="url(#blur)">
+    <ellipse cx="1500" cy="330" rx="520" ry="200" fill="url(#storm)"/>
+    <ellipse cx="1700" cy="420" rx="380" ry="170" fill="#0b1418" opacity="0.85"/>
+  </g>
+  <g stroke="#9db0b6" stroke-opacity="0.12" stroke-width="2">
+    <path d="M1280 470 L1240 690 M1340 470 L1300 690 M1400 470 L1360 690 M1460 470 L1420 690 M1520 470 L1480 690 M1580 470 L1540 690 M1640 470 L1600 690 M1700 470 L1660 690 M1760 470 L1720 690 M1820 470 L1780 690"/>
+  </g>
+
+  <!-- far hills -->
+  <path d="M0 690 Q 180 640 360 668 T 760 655 T 1160 662 T 1560 640 T 1920 660 V 700 H 0 Z" fill="#132026"/>
+  <path d="M0 700 Q 240 672 520 690 T 1080 684 T 1600 676 T 1920 690 V 720 H 0 Z" fill="#0f1a1f"/>
+
+  <!-- ground -->
+  <rect y="700" width="1920" height="380" fill="#0c1417"/>
+
+  <!-- highway in perspective -->
+  <path d="M780 702 L 840 702 L 1500 1080 L 120 1080 Z" fill="url(#road)"/>
+  <path d="M810 702 L 812 702 L 830 1080 L 790 1080 Z" fill="none"/>
+  <g stroke="#e4eef0" stroke-opacity="0.35" stroke-width="3" stroke-dasharray="22 30">
+    <path d="M811 704 L 812 1080"/>
+  </g>
+  <g stroke="#e4eef0" stroke-opacity="0.12" stroke-width="2">
+    <path d="M780 702 L 120 1080"/>
+    <path d="M840 702 L 1500 1080"/>
+  </g>
+
+  <!-- alternate route glow, branching left -->
+  <path d="M800 740 C 640 760, 420 800, 0 820" stroke="#ff5b04" stroke-width="3" stroke-opacity="0.75" fill="none" stroke-dasharray="2 10" stroke-linecap="round"/>
+
+  <!-- convoy headlights -->
+  <g filter="url(#soft)">
+    <circle cx="806" cy="716" r="3" fill="#ffd9b8"/>
+    <circle cx="815" cy="716" r="3" fill="#ffd9b8"/>
+    <circle cx="790" cy="760" r="5" fill="#ffd9b8"/>
+    <circle cx="806" cy="760" r="5" fill="#ffd9b8"/>
+    <circle cx="764" cy="842" r="8" fill="#ffe6cf"/>
+    <circle cx="790" cy="842" r="8" fill="#ffe6cf"/>
+    <circle cx="842" cy="800" r="4" fill="#ff5a65"/>
+    <circle cx="856" cy="800" r="4" fill="#ff5a65"/>
+  </g>
+  <g filter="url(#blur)" opacity="0.6">
+    <ellipse cx="777" cy="860" rx="90" ry="26" fill="#ff7a33"/>
+    <ellipse cx="798" cy="768" rx="50" ry="14" fill="#ff7a33"/>
+  </g>
+
+  <rect width="1920" height="1080" filter="url(#grain)"/>
+</svg>

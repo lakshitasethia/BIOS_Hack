@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/* Design tokens — see DESIGN.md §3–5 */
+:root {
+  --bg: #0f1a1f;
+  --surface: #16232a;
+  --surface-raised: #1d2d35;
+  --border: rgba(228, 238, 240, 0.08);
+  --border-strong: rgba(228, 238, 240, 0.14);
+  --text: #e4eef0;
+  --text-muted: #9db0b6;
+  --text-subtle: #7d9198;
+  --accent: #ff5b04;
+  --accent-hover: #ff7a33;
+  --on-accent: #16232a;
+  --brand: #075056;
+  --flow: #2fb8a6;
+}
+
+@theme inline {
+  --color-night-950: #0f1a1f;
+  --color-night-900: #16232a;
+  --color-night-850: #1d2d35;
+  --color-night-800: #253842;
+  --color-night-700: #344a55;
+  --color-night-600: #4a616c;
+  --color-night-400: #7d9198;
+  --color-night-300: #9db0b6;
+  --color-night-100: #e4eef0;
+  --color-night-50: #f4f7f8;
+
+  --color-tide-700: #075056;
+  --color-tide-500: #0e7c74;
+  --color-tide-400: #2fb8a6;
+  --color-tide-300: #3fd0bc;
+
+  --color-signal-700: #c2410c;
+  --color-signal-500: #ff5b04;
+  --color-signal-400: #ff7a33;
+  --color-signal-200: #ffc9a8;
+
+  --color-risk-clear: #2fb8a6;
+  --color-risk-watch: #f2b33d;
+  --color-risk-high: #ff5b04;
+  --color-risk-critical: #ff5a65;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Mono uppercase "system voice" label — DESIGN.md §4.3 */
+@utility label {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@utility focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
