@@ -16,15 +16,14 @@ const H = 1420;
 const BAR_W = 20;
 const BAR_H = 110;
 const FIELD_TOP = 24;
-const BASE = H - BAR_H; // top of the mark and side panels, flush with the section bottom
 
 const C = {
   paper: "#f8faf0",
   bar: "#e6e6d1",
   line: "#b5b9a6",
-  lime: "#c4ff9d",
+  lime: "color(display-p3 0.8173 1 0.6575)",
   tan: "#e6b360",
-  orange: "#ff5b04",
+  orange: "color(display-p3 1 0.3725 0.0078)",
   node: "#072c2c",
 };
 
@@ -39,20 +38,25 @@ const FIELD = Array.from({ length: 58 }, (_, i) => ({
   y: FIELD_TOP + Math.round((seeded(i + 99) - 0.35) * 44),
 }));
 
-// Mark: two posts around the docking slot, then a zigzag of three slanted bars.
-const MARK_X = 589;
-const SLOT_X = MARK_X + 30;
-const POSTS = [MARK_X, MARK_X + 60];
-const SLANTS = [
-  [MARK_X + 100, "up"],
-  [MARK_X + 150, "down"],
-  [MARK_X + 200, "up"],
-] as const;
-const slant = (x: number, dir: "up" | "down") =>
-  dir === "up"
-    ? `${x},${H} ${x + 22},${H} ${x + 62},${BASE} ${x + 40},${BASE}`
-    : `${x},${BASE} ${x + 22},${BASE} ${x + 62},${H} ${x + 40},${H}`;
-const DOCK = { x: SLOT_X + BAR_W / 2, y: BASE - 20 + BAR_H / 2 };
+// Mark: two posts around the docking slot, then our zigzag, sitting flush on the section edge.
+const MARK_H = 92;
+const MARK_TOP = H - MARK_H;
+const MARK_X = 621;
+const POSTS = [MARK_X, MARK_X + 46];
+const SLOT_X = MARK_X + 22;
+const ZIG_X = MARK_X + 80;
+const ZIGZAG = [
+  `${ZIG_X},${H} ${ZIG_X + 20},${H} ${ZIG_X + 54},${MARK_TOP} ${ZIG_X + 34},${MARK_TOP}`,
+  `${ZIG_X + 34},${MARK_TOP} ${ZIG_X + 54},${MARK_TOP} ${ZIG_X + 88},${H} ${ZIG_X + 68},${H}`,
+  `${ZIG_X + 68},${H} ${ZIG_X + 88},${H} ${ZIG_X + 122},${MARK_TOP} ${ZIG_X + 102},${MARK_TOP}`,
+];
+// The docked rider stands taller than the posts, its foot just above the edge.
+const DOCK = { x: SLOT_X + BAR_W / 2, y: H - 10 - BAR_H / 2 };
+
+// Side panels start beside the mark and slide out into the content edges (clipped there).
+const CONTENT = { left: 126, right: W - 126 };
+const PANEL_W = 264;
+const PANEL_SLIDE = 150;
 
 type Rider = {
   home: number;
@@ -215,10 +219,10 @@ export function SignalField() {
 
       // Mark warms to orange as the rider docks; side panels part to make room.
       const dock = clamp01(1 - orangeLeft / 40);
-      const part = clamp01(1 - orangeLeft / 320);
+      const part = clamp01(1 - orangeLeft / 360);
       if (markGlowRef.current) markGlowRef.current.style.opacity = String(dock);
-      panelLeftRef.current?.setAttribute("transform", `translate(${-110 * part} 0)`);
-      panelRightRef.current?.setAttribute("transform", `translate(${110 * part} 0)`);
+      panelLeftRef.current?.setAttribute("transform", `translate(${-PANEL_SLIDE * part} 0)`);
+      panelRightRef.current?.setAttribute("transform", `translate(${PANEL_SLIDE * part} 0)`);
     };
 
     if (reduced) {
@@ -311,28 +315,23 @@ export function SignalField() {
             ),
           )}
 
-          <g ref={panelLeftRef}>
-            <TruckPanel x={70} />
-          </g>
-          <g ref={panelRightRef}>
-            <TruckPanel x={W - 70 - 360} mirrored />
+          <defs>
+            <clipPath id="signal-content">
+              <rect x={CONTENT.left} y={0} width={CONTENT.right - CONTENT.left} height={H} />
+            </clipPath>
+          </defs>
+          <g clipPath="url(#signal-content)">
+            <g ref={panelLeftRef}>
+              <TruckPanel x={MARK_X - 120 - PANEL_W} />
+            </g>
+            <g ref={panelRightRef}>
+              <TruckPanel x={ZIG_X + 122 + 120} mirrored />
+            </g>
           </g>
 
-          <g>
-            {POSTS.map((x) => (
-              <rect key={x} x={x} y={BASE} width={BAR_W} height={BAR_H} fill={C.tan} />
-            ))}
-            {SLANTS.map(([x, dir]) => (
-              <polygon key={x} points={slant(x, dir)} fill={C.tan} />
-            ))}
-          </g>
+          <Mark fill={C.tan} />
           <g ref={markGlowRef} style={{ opacity: 0 }}>
-            {POSTS.map((x) => (
-              <rect key={x} x={x} y={BASE} width={BAR_W} height={BAR_H} fill={C.orange} />
-            ))}
-            {SLANTS.map(([x, dir]) => (
-              <polygon key={x} points={slant(x, dir)} fill={C.orange} />
-            ))}
+            <Mark fill={C.orange} />
           </g>
 
           {RIDERS.map((r, i) => {
@@ -348,7 +347,7 @@ export function SignalField() {
                 width={BAR_W}
                 height={BAR_H}
                 transform={`translate(${b.x + BAR_W / 2} ${b.y + BAR_H / 2})`}
-                fill={r.tone === "orange" ? C.orange : C.lime}
+                style={{ fill: r.tone === "orange" ? C.orange : C.lime }}
                 stroke={r.tone === "orange" ? "none" : C.line}
                 strokeOpacity={0.6}
                 strokeWidth={1}
@@ -382,26 +381,39 @@ export function SignalField() {
   );
 }
 
-// Top-down wireframe of a truck (cab + trailer + axles) on a flat panel.
+function Mark({ fill }: { fill: string }) {
+  return (
+    <g style={{ fill }}>
+      {POSTS.map((x) => (
+        <rect key={x} x={x} y={MARK_TOP} width={18} height={MARK_H} />
+      ))}
+      {ZIGZAG.map((pts) => (
+        <polygon key={pts} points={pts} />
+      ))}
+    </g>
+  );
+}
+
+// Top-down wireframe of a truck (cab + trailer + axles) on a flat panel, flush with the edge.
 function TruckPanel({ x, mirrored = false }: { x: number; mirrored?: boolean }) {
-  const w = 360;
-  const cy = BASE + BAR_H / 2;
-  const cabX = mirrored ? x + w - 96 : x + 46;
-  const trailerX = mirrored ? x + 24 : x + 120;
+  const top = H - MARK_H;
+  const cy = top + MARK_H / 2;
+  const cabX = mirrored ? x + PANEL_W - 70 : x + 30;
+  const trailerX = mirrored ? x + 22 : x + 82;
   return (
     <g stroke={C.line} strokeWidth={1} fill="none" vectorEffect="non-scaling-stroke">
-      <rect x={x} y={BASE} width={w} height={BAR_H} fill={C.bar} stroke="none" />
-      <rect x={cabX} y={cy - 22} width={50} height={44} />
-      <rect x={trailerX} y={cy - 22} width={216} height={44} />
-      {[cabX + 12, trailerX + 56, trailerX + 160].map((ax) => (
+      <rect x={x} y={top} width={PANEL_W} height={MARK_H} fill={C.bar} stroke="none" />
+      <rect x={cabX} y={cy - 18} width={40} height={36} />
+      <rect x={trailerX} y={cy - 18} width={160} height={36} />
+      {[cabX + 8, trailerX + 30, trailerX + 110].map((ax) => (
         <g key={ax}>
-          <line x1={ax} y1={cy - 30} x2={ax + 26} y2={cy - 30} strokeWidth={2} />
-          <line x1={ax} y1={cy + 30} x2={ax + 26} y2={cy + 30} strokeWidth={2} />
+          <line x1={ax} y1={cy - 26} x2={ax + 24} y2={cy - 26} strokeWidth={2} />
+          <line x1={ax} y1={cy + 26} x2={ax + 24} y2={cy + 26} strokeWidth={2} />
         </g>
       ))}
-      <line x1={cabX + 21} y1={cy} x2={cabX + 29} y2={cy} />
-      <line x1={trailerX + 104} y1={cy} x2={trailerX + 112} y2={cy} />
-      <rect x={mirrored ? x + w - 20 : x + 14} y={cy - 22} width={5} height={44} />
+      <line x1={cabX + 16} y1={cy} x2={cabX + 24} y2={cy} />
+      <line x1={trailerX + 76} y1={cy} x2={trailerX + 84} y2={cy} />
+      <rect x={mirrored ? x + PANEL_W - 14 : x + 10} y={cy - 18} width={4} height={36} />
     </g>
   );
 }
