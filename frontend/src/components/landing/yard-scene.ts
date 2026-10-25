@@ -27,10 +27,11 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
 const FIELD = /* glsl */ `
   uniform float uConvert;
   uniform vec2 uOrigin;
+  uniform float uRadius;
   float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
   float convField(vec3 wp) {
     float cell = hash3(floor(wp * 0.8));
-    float sweep = clamp(length(wp.xz - uOrigin) / 70.0, 0.0, 1.0);
+    float sweep = clamp(length(wp.xz - uOrigin) / uRadius, 0.0, 1.0);
     return clamp(0.62 * sweep + 0.38 * cell, 0.0, 1.0) * 0.98 + 0.01;
   }
 `;
@@ -38,6 +39,7 @@ const FIELD = /* glsl */ `
 type Uniforms = {
   uConvert: { value: number };
   uOrigin: { value: THREE.Vector2 };
+  uRadius: { value: number };
   uTime: { value: number };
   uPixelRatio: { value: number };
 };
@@ -47,6 +49,7 @@ function solidMaterial(U: Uniforms, params: THREE.MeshStandardMaterialParameters
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uConvert = U.uConvert;
     shader.uniforms.uOrigin = U.uOrigin;
+    shader.uniforms.uRadius = U.uRadius;
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vWp;")
       .replace("#include <project_vertex>", "#include <project_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;");
@@ -66,7 +69,7 @@ function solidMaterial(U: Uniforms, params: THREE.MeshStandardMaterialParameters
 
 function lineMaterial(U: Uniforms, fade: { value: number }) {
   return new THREE.ShaderMaterial({
-    uniforms: { uConvert: U.uConvert, uOrigin: U.uOrigin, uFade: fade, uColor: { value: CYAN } },
+    uniforms: { uConvert: U.uConvert, uOrigin: U.uOrigin, uRadius: U.uRadius, uFade: fade, uColor: { value: CYAN } },
     vertexShader: /* glsl */ `
       varying vec3 vWp;
       void main() {
@@ -92,7 +95,7 @@ function lineMaterial(U: Uniforms, fade: { value: number }) {
 
 function pointsMaterial(U: Uniforms, fade: { value: number }, size = 2.2) {
   return new THREE.ShaderMaterial({
-    uniforms: { uConvert: U.uConvert, uOrigin: U.uOrigin, uFade: fade, uTime: U.uTime, uPixelRatio: U.uPixelRatio, uSize: { value: size } },
+    uniforms: { uConvert: U.uConvert, uOrigin: U.uOrigin, uRadius: U.uRadius, uFade: fade, uTime: U.uTime, uPixelRatio: U.uPixelRatio, uSize: { value: size } },
     vertexShader: /* glsl */ `
       attribute float aRand;
       uniform float uTime, uPixelRatio, uSize, uFade;
@@ -130,6 +133,17 @@ function pointsMaterial(U: Uniforms, fade: { value: number }, size = 2.2) {
 
 // ---------- scene ----------
 
+export type Shot = {
+  dist: number; // truck position along the road
+  cam: [number, number, number]; // camera, relative to the truck
+  look: [number, number, number];
+  fov: number;
+  convert: number; // 0 = fully real, 1 = fully digital
+  radius: number; // how far conversion spreads from the truck
+  night: number;
+  routes: number; // 0..1 visibility of the route lines
+};
+
 type Riser = { obj: THREE.Object3D; at: number };
 
 export class YardScene {
@@ -139,6 +153,7 @@ export class YardScene {
   private U: Uniforms = {
     uConvert: { value: 0 },
     uOrigin: { value: new THREE.Vector2() },
+    uRadius: { value: 70 },
     uTime: { value: 0 },
     uPixelRatio: { value: 1 },
   };
@@ -158,6 +173,8 @@ export class YardScene {
   private fovs: number[];
   private keyP: number[];
   private p = 0;
+  private shot: Shot | null = null;
+  private routes = new THREE.Group();
   private smoke: THREE.ShaderMaterial;
   private smokeScene = new THREE.Scene();
   private smokeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -237,6 +254,7 @@ export class YardScene {
     this.truck.add(this.headlight, this.headlight.target);
     this.buildYard();
     this.buildTrailerFrames();
+    this.buildRoutes();
     this.smoke = this.buildSmoke();
 
     // camera path, relative to the truck — keyframed by scroll progress
@@ -534,6 +552,24 @@ export class YardScene {
     return m;
   }
 
+  // Glowing route lines for still shots: the blocked stretch of road and the recommended detour.
+  private buildRoutes() {
+    const tube = (pts: [number, number][], color: string, r: number) => {
+      const curve = new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0.16, z)), false, "centripetal");
+      const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 120, r, 8), new THREE.MeshBasicMaterial({ color, toneMapped: false }));
+      this.routes.add(m);
+    };
+    tube([[22, 0], [34, 0], [46, 0], [58, 0]], "#ff5b04", 0.16);
+    tube([[12, 0], [19, 0.4], [24, 6.4], [32, 6.6], [44, 6.6], [52, 5.8], [57, 0.4], [66, 0]], "#7fd4d9", 0.22);
+    this.routes.visible = false;
+    this.scene.add(this.routes);
+  }
+
+  // A fixed camera framing used by the still panels (see YardStill). Pass null to return to scroll mode.
+  setShot(shot: Shot | null) {
+    this.shot = shot;
+  }
+
   // ---- runtime
 
   resize(w: number, h: number) {
@@ -552,8 +588,10 @@ export class YardScene {
   }
 
   render(time: number) {
+    if (this.shot) return this.renderShot(time, this.shot);
     const p = this.p;
     this.U.uTime.value = time / 1000;
+    this.U.uRadius.value = 70;
 
     // drive
     const dist = 46 * span(p, 0.03, 0.7);
@@ -620,6 +658,51 @@ export class YardScene {
       this.renderer.autoClear = false;
       this.renderer.render(this.smokeScene, this.smokeCam);
     }
+  }
+
+  private renderShot(time: number, s: Shot) {
+    this.U.uTime.value = time / 1000;
+    this.truck.position.x = s.dist;
+    this.U.uOrigin.value.set(s.dist - 2, 0);
+    this.U.uRadius.value = s.radius;
+    this.U.uConvert.value = s.convert;
+    for (const r of this.risers) {
+      r.obj.scale.y = 1;
+      r.obj.visible = true;
+    }
+    this.yardFade.value = 1;
+    this.truckFade.value = 1;
+    const night = s.night;
+    this.sky.uniforms.uNight.value = night;
+    this.stars.uniforms.uAlpha.value = 0;
+    this.smoke.uniforms.uSmoke.value = 0;
+    this.fog.color.set("#c98a62").lerp(new THREE.Color("#020304"), night);
+    this.fog.far = 230 + night * 200;
+    this.hemi.intensity = 1.95 * (1 - night * 0.5);
+    this.sun.intensity = 2.5 * (1 - night * 0.6);
+    this.headlight.intensity = 60;
+    const dark = new THREE.Color("#050607");
+    this.groundMats.forEach((m) => m.color.copy(m.userData.base).lerp(dark, night * 0.4));
+    this.glowMats.forEach((m) => {
+      m.opacity = 1;
+      m.visible = true;
+    });
+    this.routes.visible = s.routes > 0.01;
+    this.routes.children.forEach((c) => {
+      const mat = (c as THREE.Mesh).material as THREE.MeshBasicMaterial;
+      mat.transparent = true;
+      mat.opacity = s.routes;
+    });
+    // high late-afternoon sun for aerials: shorter shadows, readable ground
+    this.sun.position.set(s.dist - 8, 55, -18);
+    this.sun.target.position.set(s.dist + 10, 0, 0);
+    this.renderer.toneMappingExposure = 1.4 - night * 0.2;
+    this.camera.position.set(s.cam[0] + s.dist, s.cam[1], s.cam[2]);
+    this.camera.lookAt(s.look[0] + s.dist, s.look[1], s.look[2]);
+    this.camera.fov = s.fov;
+    this.camera.updateProjectionMatrix();
+    this.renderer.autoClear = true;
+    this.renderer.render(this.scene, this.camera);
   }
 
   dispose() {

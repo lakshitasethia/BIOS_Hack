@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { site } from "@/lib/site";
+import { YardStill } from "@/components/landing/yard-still";
+import type { Shot } from "@/components/landing/yard-scene";
 
 /*
  * "Introducing Vectrix" — sticky feature scroller.
@@ -30,6 +32,21 @@ const STEPS = [
 ];
 
 const INK = "#0b2a2c";
+
+// One shot per step, relative to the truck — the camera flies between them.
+const SHOTS: Shot[] = [
+  { dist: 8, cam: [3, 42, 10], look: [3, 0, 0], fov: 42, convert: 0, radius: 12, night: 0.05, routes: 0 },
+  { dist: 8, cam: [11, 27, 18], look: [-1, 1, 0], fov: 38, convert: 0.62, radius: 11, night: 0.15, routes: 0 },
+  { dist: 8, cam: [28, 54, 27], look: [26, 0, 2], fov: 44, convert: 0, radius: 12, night: 0.12, routes: 1 },
+  { dist: 8, cam: [31, 36, 31], look: [24, 0, 3], fov: 40, convert: 0.5, radius: 15, night: 0.32, routes: 1 },
+];
+
+const HUD = [
+  { k: "Signal · IMD red alert", v: "Khandala ghat · 210 mm forecast", tone: "#7fd4d9" },
+  { k: "Risk 78 · At risk", v: "6 shipments · +7h · ₹18.4L at stake", tone: "#ff8a4c" },
+  { k: "Option A · Recommended", v: "Detour via old NH-48 · +1h 40m", tone: "#7fd4d9" },
+  { k: "Approved · 14:20 IST", v: "ETA 21:40 · on track", tone: "#c4ff9d" },
+];
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 export function Introducing() {
@@ -119,137 +136,24 @@ export function Introducing() {
                 "polygon(18px 0, 100% 0, 100% 100%, 18px 100%, 18px 82%, 0 calc(82% - 18px), 0 calc(16% + 18px), 18px 16%)",
             }}
           >
-            {STEPS.map((_, i) => (
+            <YardStill shots={SHOTS} index={active} />
+            <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(5,9,10,0.55),transparent_45%)]" />
+            {HUD.map((h, i) => (
               <div
                 key={i}
-                className="absolute inset-0 transition-[opacity,transform] duration-700 ease-out"
-                style={{ opacity: i === active ? 1 : 0, transform: `scale(${i === active ? 1 : 1.04})` }}
+                className="absolute bottom-8 left-10 transition-[opacity,transform] duration-700"
+                style={{ opacity: i === active ? 1 : 0, transform: `translateY(${i === active ? 0 : 10}px)` }}
               >
-                <AerialTwin step={i} />
+                <p className="flex items-center gap-2 font-mono text-[0.75rem] uppercase tracking-[0.12em]" style={{ color: h.tone }}>
+                  <span className="size-1.5 rotate-45" style={{ background: h.tone }} />
+                  {h.k}
+                </p>
+                <p className="mt-1.5 font-mono text-[0.8125rem] text-white/85">{h.v}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
     </section>
-  );
-}
-
-/* ---------- aerial digital-twin panels (top-down, 600×720) ---------- */
-
-function TruckTop({ x, y, wire = false, tone = "#e8e2d8" }: { x: number; y: number; wire?: boolean; tone?: string }) {
-  const s = wire
-    ? { fill: "rgba(255,255,255,0.06)", stroke: "rgba(255,255,255,0.9)", strokeWidth: 1.4 }
-    : { fill: tone, stroke: "rgba(0,0,0,0.25)", strokeWidth: 1 };
-  return (
-    <g transform={`translate(${x} ${y})`}>
-      <rect x={-118} y={-18} width={190} height={36} rx={3} {...s} />
-      {wire && Array.from({ length: 9 }, (_, i) => <line key={i} x1={-100 + i * 20} y1={-18} x2={-100 + i * 20} y2={18} stroke="rgba(255,255,255,0.45)" />)}
-      <rect x={78} y={-16} width={40} height={32} rx={6} {...s} />
-      {wire && <rect x={92} y={-12} width={20} height={24} rx={3} fill="none" stroke="rgba(255,255,255,0.6)" />}
-    </g>
-  );
-}
-
-function Label({ x, y, k, v, tone = "#ff8a4c" }: { x: number; y: number; k: string; v: string; tone?: string }) {
-  return (
-    <g transform={`translate(${x} ${y})`} fontFamily="var(--font-geist-mono), monospace" fontSize="12" letterSpacing="1.2">
-      <rect x={-6} y={-6} width={6} height={6} fill={tone} transform="rotate(45 -3 -3)" />
-      <text x={8} y={0} fill={tone}>
-        {k}
-      </text>
-      <text x={8} y={16} fill="rgba(255,255,255,0.8)">
-        {v}
-      </text>
-    </g>
-  );
-}
-
-function AerialTwin({ step }: { step: number }) {
-  return (
-    <svg viewBox="0 0 600 720" preserveAspectRatio="xMidYMid slice" className="size-full" aria-hidden>
-      <defs>
-        <linearGradient id="ground" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#9a6b4a" />
-          <stop offset="1" stopColor="#7a5238" />
-        </linearGradient>
-        <radialGradient id="storm" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="#7fd4d9" stopOpacity="0.45" />
-          <stop offset="0.6" stopColor="#7fd4d9" stopOpacity="0.12" />
-          <stop offset="1" stopColor="#7fd4d9" stopOpacity="0" />
-        </radialGradient>
-        <radialGradient id="risk" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="#ff5b04" stopOpacity="0.4" />
-          <stop offset="1" stopColor="#ff5b04" stopOpacity="0" />
-        </radialGradient>
-        <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
-          <circle cx="2" cy="2" r="1.1" fill="rgba(255,255,255,0.35)" />
-        </pattern>
-        <filter id="soft"><feGaussianBlur stdDeviation="14" /></filter>
-      </defs>
-
-      {/* ground, building shadow, planter, the road */}
-      <rect width="600" height="720" fill="url(#ground)" />
-      <path d="M140 0 H600 V250 L420 300 L230 300 Z" fill="#3c2416" opacity="0.55" filter="url(#soft)" />
-      <rect x="452" y="0" width="34" height="250" fill="#4f5b2c" opacity="0.8" />
-      <rect x="0" y="520" width="600" height="110" fill="#5e3f2b" opacity="0.55" />
-      <line x1="0" y1="575" x2="600" y2="575" stroke="rgba(255,240,220,0.45)" strokeWidth="2" strokeDasharray="22 26" />
-      <line x1="405" y1="0" x2="405" y2="520" stroke="rgba(255,255,255,0.55)" strokeWidth="2" />
-      <rect width="600" height="720" fill="url(#dots)" opacity="0.5" />
-
-      {step === 0 && (
-        <g>
-          <circle cx="250" cy="420" r="230" fill="url(#storm)" />
-          <g stroke="rgba(127,212,217,0.55)" strokeWidth="1.2">
-            {Array.from({ length: 16 }, (_, i) => (
-              <line key={i} x1={80 + i * 28} y1={260 + (i % 3) * 18} x2={70 + i * 28} y2={300 + (i % 3) * 18} />
-            ))}
-          </g>
-          <TruckTop x={300} y={575} wire />
-          <Label x={70} y={470} k="SIGNAL · IMD RED ALERT" v="Khandala ghat · 210 mm" tone="#7fd4d9" />
-        </g>
-      )}
-
-      {step === 1 && (
-        <g>
-          <circle cx="330" cy="575" r="170" fill="url(#risk)" />
-          <circle cx="330" cy="575" r="110" fill="none" stroke="rgba(255,138,76,0.7)" strokeDasharray="4 6" />
-          <circle cx="330" cy="575" r="160" fill="none" stroke="rgba(255,138,76,0.35)" strokeDasharray="4 6" />
-          <TruckTop x={330} y={575} wire />
-          {[
-            [140, 470],
-            [480, 470],
-            [520, 660],
-            [120, 668],
-          ].map(([x, y], i) => (
-            <rect key={i} x={x - 5} y={y - 5} width={10} height={10} fill="#ff8a4c" transform={`rotate(45 ${x} ${y})`} />
-          ))}
-          <Label x={60} y={420} k="RISK 78 · AT RISK" v="6 shipments · ₹18.4L" />
-        </g>
-      )}
-
-      {step === 2 && (
-        <g>
-          <path d="M-10 575 H600" stroke="#ff5b04" strokeWidth="4" strokeDasharray="10 10" opacity="0.85" />
-          <path d="M-10 575 C120 575, 150 380, 300 380 S470 575, 610 575" stroke="#7fd4d9" strokeWidth="4" fill="none" />
-          <circle cx="300" cy="380" r="7" fill="#7fd4d9" />
-          <TruckTop x={190} y={575} wire />
-          <Label x={330} y={340} k="OPTION A · RECOMMENDED" v="Old NH-48 · +1h 40m" tone="#7fd4d9" />
-          <Label x={360} y={640} k="CURRENT ROUTE" v="Expressway · blocked" />
-        </g>
-      )}
-
-      {step === 3 && (
-        <g>
-          <path d="M-10 575 C120 575, 150 380, 300 380 S470 575, 610 575" stroke="#7fd4d9" strokeWidth="4" fill="none" />
-          <TruckTop x={330} y={392} wire />
-          <g transform="translate(470 250)">
-            <circle r="26" fill="rgba(127,212,217,0.18)" stroke="#7fd4d9" />
-            <path d="M-10 0 L-3 8 L11 -8" stroke="#7fd4d9" strokeWidth="3" fill="none" strokeLinecap="round" />
-          </g>
-          <Label x={70} y={300} k="APPROVED · 14:20 IST" v="ETA 21:40 · on track" tone="#7fd4d9" />
-        </g>
-      )}
-    </svg>
   );
 }

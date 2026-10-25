@@ -2,21 +2,27 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { YardStill } from "@/components/landing/yard-still";
+import type { Shot } from "@/components/landing/yard-scene";
+
+// Routes: a high aerial over the detour. Actions: down onto the warehouse docks.
+const SHOTS: Shot[] = [
+  { dist: 8, cam: [26, 46, 30], look: [26, 0, 2], fov: 40, convert: 0, radius: 12, night: 0.08, routes: 1 },
+  { dist: 8, cam: [44, 26, 8], look: [42, 0, -24], fov: 44, convert: 0, radius: 12, night: 0.3, routes: 0 },
+];
 
 const RESPONSES = [
   {
     title: "Better routes",
     body: "When traffic or weather hits a corridor, every affected shipment gets ranked alternatives — a different highway, a hub to hold at, or a switch to rail — with the extra hours and rupees shown upfront.",
     points: ["Traffic & port congestion", "Weather & road closures", "Reroute, hold or switch mode"],
-    image: "/images/routes-aerial.svg",
-    alt: "Aerial view of a highway interchange with an alternate route highlighted",
+    tag: "Detour via old NH-48 · +1h 40m",
   },
   {
     title: "Better actions",
     body: "When a supplier slips or stock runs low, the platform finds the cheapest fix before customers feel it — transfer stock between warehouses, expedite a backup supplier, or re-promise the order.",
     points: ["Supplier delays", "Inventory shortages", "Transfer, expedite or re-promise"],
-    image: "/images/stock-aerial.svg",
-    alt: "Aerial view of a warehouse with trucks at its loading docks",
+    tag: "Dock 4 · transfer 600 units to Gurugram DC",
   },
 ];
 
@@ -74,19 +80,13 @@ export function Responses() {
             })}
           </div>
 
-          <div className="relative min-h-72 border-t border-black/10 md:border-l md:border-t-0">
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.img
-                key={RESPONSES[open].image}
-                src={RESPONSES[open].image}
-                alt={RESPONSES[open].alt}
-                initial={{ opacity: 0, scale: 1.03 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="absolute inset-0 size-full object-cover"
-              />
-            </AnimatePresence>
+          <div className="relative min-h-80 overflow-hidden border-t border-black/10 md:border-l md:border-t-0">
+            <YardStill shots={SHOTS} index={open} className="absolute inset-0" />
+            <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(5,9,10,0.5),transparent_40%)]" />
+            <p className="absolute bottom-5 left-6 flex items-center gap-2 font-mono text-[0.75rem] uppercase tracking-[0.12em] text-cyan">
+              <span className="size-1.5 rotate-45 bg-cyan" />
+              {RESPONSES[open].tag}
+            </p>
           </div>
         </div>
       </div>
