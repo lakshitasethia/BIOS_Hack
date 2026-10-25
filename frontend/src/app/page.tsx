@@ -3,7 +3,7 @@ import { Nav } from "@/components/landing/nav";
 import { SmoothScroll } from "@/components/landing/smooth-scroll";
 import { Hero } from "@/components/landing/hero-3d";
 import { SignalField } from "@/components/landing/signal-field";
-import { Platform } from "@/components/landing/platform";
+import { Introducing } from "@/components/landing/introducing";
 import { Impact } from "@/components/landing/impact";
 import { Responses } from "@/components/landing/responses";
 import { Scenarios } from "@/components/landing/scenarios";
@@ -19,8 +19,8 @@ export default function Home() {
       <main>
         <Hero />
         <SignalField />
-        <Platform />
         <Impact />
+        <Introducing />
         <Responses />
         <Scenarios />
         <Sources />
