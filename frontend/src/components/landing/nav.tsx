@@ -28,9 +28,15 @@ export function Logo() {
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [light, setLight] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    // Sections marked data-nav="light" sit under the bar → switch to the light treatment.
+    const onScroll = () => {
+      setScrolled(window.scrollY > 24);
+      const under = document.elementsFromPoint(window.innerWidth / 2, 40).find((el) => el.closest("[data-nav]"));
+      setLight(under?.closest("[data-nav]")?.getAttribute("data-nav") === "light");
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -38,8 +44,13 @@ export function Nav() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 border-b transition-colors duration-300 ${
-        scrolled || open ? "border-border bg-night-950/80 backdrop-blur-xl" : "border-transparent"
+      data-light={light || undefined}
+      className={`group/nav fixed inset-x-0 top-0 z-50 border-b transition-colors duration-300 ${
+        light
+          ? "border-black/10 bg-[#f8faf0]/85 text-black backdrop-blur-xl"
+          : scrolled || open
+            ? "border-border bg-night-950/80 backdrop-blur-xl"
+            : "border-transparent"
       }`}
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 md:px-8">
@@ -48,7 +59,7 @@ export function Nav() {
         <ul className="hidden items-center gap-8 md:flex">
           {links.map((l) => (
             <li key={l.href}>
-              <a href={l.href} className="label focus-ring rounded text-text-muted transition-colors hover:text-text">
+              <a href={l.href} className="label focus-ring rounded text-text-muted transition-colors hover:text-text group-data-light/nav:text-black/60 group-data-light/nav:hover:text-black">
                 {l.label}
               </a>
             </li>
@@ -56,7 +67,7 @@ export function Nav() {
         </ul>
 
         <div className="hidden items-center gap-5 md:flex">
-          <Link href="#" className="label focus-ring rounded text-text-muted hover:text-text">
+          <Link href="#" className="label focus-ring rounded text-text-muted hover:text-text group-data-light/nav:text-black/60 group-data-light/nav:hover:text-black">
             Log in
           </Link>
           <ButtonLink href={site.appHref}>Open control tower</ButtonLink>

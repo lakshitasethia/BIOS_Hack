@@ -5,16 +5,28 @@ import { useEffect, useRef, useState } from "react";
 /*
  * "Signal → decision" scroll story — DESIGN.md §7.5.
  * A field of signal bars; a few light up, leave the field and ride their dotted
- * route down the page (oriented along the path) while captions fill in word by word.
- * The orange one — the disruption that matters — lands in a single recommendation.
- * Progress is tied to scroll and eased with a lerp so the motion trails the wheel.
+ * route down the page, oriented along the path, while captions fill in word by word.
+ * Riders track the scroll position 1:1 (a horizontal "scroll line" through the
+ * viewport), so they glide down with the reader instead of racing ahead.
+ * The orange rider — the disruption that matters — docks into the mark at the bottom.
  */
 
 const W = 1440;
-const H = 1320;
+const H = 1420;
 const BAR_W = 20;
 const BAR_H = 110;
 const FIELD_TOP = 24;
+const BASE = H - BAR_H; // top of the mark and side panels, flush with the section bottom
+
+const C = {
+  paper: "#f8faf0",
+  bar: "#e6e6d1",
+  line: "#b5b9a6",
+  lime: "#c4ff9d",
+  tan: "#e6b360",
+  orange: "#ff5b04",
+  node: "#072c2c",
+};
 
 // Deterministic jitter so server and client render the same field.
 function seeded(i: number) {
@@ -27,70 +39,132 @@ const FIELD = Array.from({ length: 58 }, (_, i) => ({
   y: FIELD_TOP + Math.round((seeded(i + 99) - 0.35) * 44),
 }));
 
-type Rider = { home: number; tone: "tide" | "signal"; window: [number, number]; d: (cx: number, cy: number) => string };
+// Mark: two posts around the docking slot, then a zigzag of three slanted bars.
+const MARK_X = 589;
+const SLOT_X = MARK_X + 30;
+const POSTS = [MARK_X, MARK_X + 60];
+const SLANTS = [
+  [MARK_X + 100, "up"],
+  [MARK_X + 150, "down"],
+  [MARK_X + 200, "up"],
+] as const;
+const slant = (x: number, dir: "up" | "down") =>
+  dir === "up"
+    ? `${x},${H} ${x + 22},${H} ${x + 62},${BASE} ${x + 40},${BASE}`
+    : `${x},${BASE} ${x + 22},${BASE} ${x + 62},${H} ${x + 40},${H}`;
+const DOCK = { x: SLOT_X + BAR_W / 2, y: BASE - 20 + BAR_H / 2 };
 
-// Each rider starts at its bar's centre, so t=0 is exactly its resting place.
+type Rider = {
+  home: number;
+  tone: "lime" | "orange";
+  lag: number;
+  // Scroll-line value at which the rider reaches the end of its path (default: 1:1 with scroll).
+  arrive?: number;
+  d: (cx: number, cy: number) => string;
+};
+
+// Each path starts at its bar's centre, so the rider leaves exactly from its resting place.
+// `lag` holds a rider back behind the scroll line so they leave one after another.
 const RIDERS: Rider[] = [
   {
     home: 12,
-    tone: "tide",
-    window: [0.04, 0.42],
-    d: (x, y) => `M${x} ${y} L${x} ${y + 90} C${x} 330, 520 360, 520 470 L520 640 C520 700, 470 712, -160 712`,
+    tone: "lime",
+    lag: 0,
+    d: (x, y) => `M${x} ${y} L${x} ${y + 90} C${x} 340, 520 370, 520 480 L520 660 C520 720, 470 732, -420 732`,
   },
   {
     home: 19,
-    tone: "tide",
-    window: [0.1, 0.48],
-    d: (x, y) => `M${x} ${y} L${x} ${y + 120} C${x} 320, 900 340, 905 470 L905 640 C905 690, 940 700, ${W + 160} 700`,
+    tone: "lime",
+    lag: 70,
+    d: (x, y) => `M${x} ${y} L${x} ${y + 120} C${x} 330, 905 350, 905 480 L905 660 C905 712, 940 722, ${W + 420} 722`,
   },
   {
     home: 38,
-    tone: "tide",
-    window: [0.16, 0.54],
-    d: (x, y) => `M${x} ${y} L${x} ${y + 100} C${x} 330, 560 350, 556 480 L556 650 C556 706, 520 730, -160 730`,
+    tone: "lime",
+    lag: 140,
+    d: (x, y) => `M${x} ${y} L${x} ${y + 100} C${x} 340, 556 360, 556 490 L556 670 C556 726, 520 750, -420 750`,
   },
   {
     home: 47,
-    tone: "tide",
-    window: [0.22, 0.6],
-    d: (x, y) => `M${x} ${y} L${x} ${y + 80} C${x} 300, 940 360, 940 480 L940 650 C940 704, 980 720, ${W + 160} 720`,
+    tone: "lime",
+    lag: 210,
+    d: (x, y) => `M${x} ${y} L${x} ${y + 80} C${x} 310, 940 370, 940 490 L940 670 C940 724, 980 740, ${W + 420} 740`,
   },
   {
     home: 31,
-    tone: "signal",
-    window: [0.3, 0.86],
-    d: (x, y) => `M${x} ${y} L${x} ${y + 140} C${x} 420, 780 470, 780 620 L780 920 C780 990, 720 990, 720 1040 L720 1060`,
+    tone: "orange",
+    lag: 120,
+    arrive: 1060,
+    d: (x, y) =>
+      `M${x} ${y} L${x} ${y + 140} C${x} 430, 790 480, 790 640 L790 960 C790 1050, 760 1080, 700 1080 L700 1080 C${DOCK.x} 1080, ${DOCK.x} 1140, ${DOCK.x} 1200 L${DOCK.x} ${DOCK.y}`,
   },
 ];
 
 const RIDER_HOMES = new Set(RIDERS.map((r) => r.home));
 
 const NODES = [
-  [520, 640],
-  [556, 650],
-  [905, 640],
-  [940, 650],
+  [520, 660],
+  [556, 670],
+  [905, 660],
+  [940, 670],
 ];
 
 const CAPTIONS = [
-  { y: 300, text: "Monsoon alerts land on highways carrying your trucks", window: [0.06, 0.24] },
-  { y: 470, text: "Port gates jam for hours and quietly delay your orders", window: [0.24, 0.42] },
-  { y: 640, text: "Suppliers slip by days before anyone connects the dots", window: [0.42, 0.6] },
-  { y: 830, text: "Stock runs out when every fix is already expensive", window: [0.6, 0.78] },
-] as const;
+  { y: 310, text: "Monsoon alerts land on highways carrying your trucks" },
+  { y: 480, text: "Port gates jam for hours and quietly delay your orders" },
+  { y: 650, text: "Suppliers slip by days before anyone connects the dots" },
+  { y: 860, text: "Stock runs out when every fix is already expensive" },
+];
 
-const CARD_Y = 1118;
+// Path sampled into a lookup table. The key advances with vertical travel, and with
+// horizontal travel on flat stretches, so motion keeps pace with the scroll everywhere.
+type Track = { xs: Float32Array; ys: Float32Array; keys: Float32Array; total: number };
+const SAMPLES = 360;
+
+function buildTrack(path: SVGPathElement): Track {
+  const len = path.getTotalLength();
+  const xs = new Float32Array(SAMPLES + 1);
+  const ys = new Float32Array(SAMPLES + 1);
+  const keys = new Float32Array(SAMPLES + 1);
+  for (let i = 0; i <= SAMPLES; i++) {
+    const p = path.getPointAtLength((i / SAMPLES) * len);
+    xs[i] = p.x;
+    ys[i] = p.y;
+    if (i > 0) keys[i] = keys[i - 1] + Math.max(Math.abs(p.y - ys[i - 1]), Math.abs(p.x - xs[i - 1]));
+  }
+  return { xs, ys, keys, total: keys[SAMPLES] };
+}
+
+function sample(track: Track, v: number) {
+  const { xs, ys, keys, total } = track;
+  const k = Math.min(Math.max(v, 0), total);
+  let lo = 0;
+  let hi = SAMPLES;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (keys[mid] <= k) lo = mid;
+    else hi = mid;
+  }
+  const span = keys[hi] - keys[lo] || 1;
+  const f = (k - keys[lo]) / span;
+  const x = xs[lo] + (xs[hi] - xs[lo]) * f;
+  const y = ys[lo] + (ys[hi] - ys[lo]) * f;
+  const a = Math.max(0, lo - 2);
+  const b = Math.min(SAMPLES, hi + 2);
+  const angle = k <= 0 ? 0 : (Math.atan2(ys[b] - ys[a], xs[b] - xs[a]) * 180) / Math.PI - 90;
+  return { x, y, angle };
+}
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-const local = (p: number, [a, b]: readonly [number, number]) => clamp01((p - a) / (b - a));
-const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 export function SignalField() {
-  const sectionRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const pathRefs = useRef<(SVGPathElement | null)[]>([]);
   const riderRefs = useRef<(SVGRectElement | null)[]>([]);
   const wordRefs = useRef<(HTMLSpanElement | null)[][]>(CAPTIONS.map(() => []));
-  const cardRef = useRef<HTMLDivElement>(null);
+  const markGlowRef = useRef<SVGGElement>(null);
+  const panelLeftRef = useRef<SVGGElement>(null);
+  const panelRightRef = useRef<SVGGElement>(null);
   const [narrow, setNarrow] = useState(false);
 
   useEffect(() => {
@@ -102,60 +176,59 @@ export function SignalField() {
   }, []);
 
   useEffect(() => {
+    const tracks = pathRefs.current.map((p) => (p ? buildTrack(p) : null));
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let current = 0;
     let target = 0;
     let raf = 0;
 
+    // Scroll line: the stage's y (in viewBox units) currently sitting at 58% of the viewport.
     const measure = () => {
-      const el = sectionRef.current;
+      const el = stageRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const vh = window.innerHeight;
-      // 0 when the field's top reaches 75% of the viewport, 1 when its bottom reaches 85%.
-      target = clamp01((vh * 0.75 - r.top) / (r.height - vh * 0.1));
+      target = ((window.innerHeight * 0.58 - r.top) / r.height) * H;
     };
 
-    const render = (p: number) => {
+    const render = (line: number) => {
+      let orangeLeft = Infinity;
+
       RIDERS.forEach((rider, i) => {
-        const path = pathRefs.current[i];
+        const track = tracks[i];
         const rect = riderRefs.current[i];
-        if (!path || !rect) return;
-        const t = easeInOut(local(p, rider.window));
-        const len = path.getTotalLength();
-        const at = path.getPointAtLength(t * len);
-        const ahead = path.getPointAtLength(Math.min(len, t * len + 2));
-        const behind = path.getPointAtLength(Math.max(0, t * len - 2));
-        const angle = t === 0 ? 0 : (Math.atan2(ahead.y - behind.y, ahead.x - behind.x) * 180) / Math.PI - 90;
-        rect.setAttribute("transform", `translate(${at.x} ${at.y}) rotate(${angle})`);
-        // Lights up just before it leaves the field.
-        rect.style.fillOpacity = String(0.08 + 0.92 * clamp01((p - (rider.window[0] - 0.04)) / 0.04));
+        if (!track || !rect) return;
+        const start = track.ys[0] + rider.lag;
+        const end = rider.arrive ?? start + track.total;
+        const v = ((line - start) / (end - start)) * track.total;
+        const { x, y, angle } = sample(track, v);
+        rect.setAttribute("transform", `translate(${x} ${y}) rotate(${angle})`);
+        if (rider.tone === "orange") orangeLeft = track.total - v;
       });
 
       CAPTIONS.forEach((c, ci) => {
         const words = wordRefs.current[ci];
-        const lp = local(p, c.window) * words.length;
+        const lp = clamp01((line - (c.y - 150)) / 190) * words.length;
         words.forEach((w, wi) => {
-          if (w) w.style.opacity = String(0.22 + 0.78 * clamp01(lp - wi));
+          if (w) w.style.opacity = String(0.2 + 0.8 * clamp01(lp - wi));
         });
       });
 
-      const card = cardRef.current;
-      if (card) {
-        const c = clamp01((p - 0.84) / 0.08);
-        card.style.opacity = String(c);
-        card.style.transform = `translate(-50%, ${(1 - c) * 16}px)`;
-      }
+      // Mark warms to orange as the rider docks; side panels part to make room.
+      const dock = clamp01(1 - orangeLeft / 40);
+      const part = clamp01(1 - orangeLeft / 320);
+      if (markGlowRef.current) markGlowRef.current.style.opacity = String(dock);
+      panelLeftRef.current?.setAttribute("transform", `translate(${-110 * part} 0)`);
+      panelRightRef.current?.setAttribute("transform", `translate(${110 * part} 0)`);
     };
 
     if (reduced) {
-      render(1);
+      render(H * 2);
       return;
     }
 
     const tick = () => {
-      current += (target - current) * 0.09;
-      if (Math.abs(target - current) < 0.0005) current = target;
+      const diff = target - current;
+      current = Math.abs(diff) < 0.1 ? target : current + diff * 0.14;
       render(current);
       raf = requestAnimationFrame(tick);
     };
@@ -171,7 +244,7 @@ export function SignalField() {
       window.removeEventListener("scroll", measure);
       window.removeEventListener("resize", measure);
     };
-  }, []);
+  }, [narrow]);
 
   // On phones, crop to the centre of the composition so the bars stay legible.
   const vbX = narrow ? 300 : 0;
@@ -179,30 +252,15 @@ export function SignalField() {
   const pct = (x: number) => `${((x - vbX) / vbW) * 100}%`;
 
   return (
-    <section id="how-it-works" className="relative overflow-hidden bg-night-950">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(60% 40% at 50% 45%, rgba(7,80,86,0.28), transparent 70%), linear-gradient(to bottom, var(--color-night-950), var(--color-night-900) 55%, var(--color-night-950))",
-        }}
-      />
-
+    <section id="how-it-works" data-nav="light" className="relative overflow-hidden" style={{ background: C.paper, color: "#000" }}>
       <div className="relative mx-auto max-w-7xl px-5 pt-24 text-center md:px-8 md:pt-28">
-        <p className="label text-text-subtle">The problem</p>
-        <h2 className="mx-auto mt-4 max-w-3xl text-[clamp(2rem,3.8vw,3.25rem)] font-normal leading-[1.08] tracking-[-0.03em] text-balance">
-          Thousands of signals a day. <span className="text-text-muted">A few will break your week.</span>
+        <h2 className="mx-auto max-w-3xl text-[clamp(2rem,3.6vw,3rem)] font-medium leading-[1.1] tracking-[-0.03em] text-balance">
+          Thousands of signals a day. A few will break your week.
         </h2>
       </div>
 
-      <div ref={sectionRef} className="relative mx-auto mt-10 w-full max-w-[1440px]" style={{ aspectRatio: `${vbW} / ${H}` }}>
-        <svg
-          viewBox={`${vbX} 0 ${vbW} ${H}`}
-          className="absolute inset-0 size-full"
-          style={{ maskImage: "linear-gradient(to right, transparent, #000 14%, #000 86%, transparent)" }}
-          aria-hidden
-        >
+      <div ref={stageRef} className="relative mx-auto mt-12 w-full max-w-[1440px]" style={{ aspectRatio: `${vbW} / ${H}` }}>
+        <svg viewBox={`${vbX} 0 ${vbW} ${H}`} className="absolute inset-0 size-full overflow-visible" aria-hidden>
           {RIDERS.map((r, i) => {
             const b = FIELD[r.home];
             return (
@@ -213,9 +271,9 @@ export function SignalField() {
                 }}
                 d={r.d(b.x + BAR_W / 2, b.y + BAR_H / 2)}
                 fill="none"
-                stroke="rgba(228,238,240,0.22)"
+                stroke={C.line}
                 strokeWidth={1}
-                strokeDasharray="2 3"
+                strokeDasharray="2 2"
                 vectorEffect="non-scaling-stroke"
               />
             );
@@ -229,8 +287,8 @@ export function SignalField() {
               width={22}
               height={6}
               rx={3}
-              fill="var(--color-night-950)"
-              stroke="rgba(228,238,240,0.55)"
+              fill={C.paper}
+              stroke={C.node}
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
             />
@@ -244,17 +302,41 @@ export function SignalField() {
                 y={b.y}
                 width={BAR_W}
                 height={BAR_H}
-                fill="rgba(228,238,240,0.05)"
-                stroke="rgba(228,238,240,0.2)"
+                fill={C.bar}
+                stroke={C.line}
+                strokeOpacity={0.55}
                 strokeWidth={1}
                 vectorEffect="non-scaling-stroke"
               />
             ),
           )}
 
+          <g ref={panelLeftRef}>
+            <TruckPanel x={70} />
+          </g>
+          <g ref={panelRightRef}>
+            <TruckPanel x={W - 70 - 360} mirrored />
+          </g>
+
+          <g>
+            {POSTS.map((x) => (
+              <rect key={x} x={x} y={BASE} width={BAR_W} height={BAR_H} fill={C.tan} />
+            ))}
+            {SLANTS.map(([x, dir]) => (
+              <polygon key={x} points={slant(x, dir)} fill={C.tan} />
+            ))}
+          </g>
+          <g ref={markGlowRef} style={{ opacity: 0 }}>
+            {POSTS.map((x) => (
+              <rect key={x} x={x} y={BASE} width={BAR_W} height={BAR_H} fill={C.orange} />
+            ))}
+            {SLANTS.map(([x, dir]) => (
+              <polygon key={x} points={slant(x, dir)} fill={C.orange} />
+            ))}
+          </g>
+
           {RIDERS.map((r, i) => {
             const b = FIELD[r.home];
-            const color = r.tone === "signal" ? "var(--color-signal-500)" : "var(--color-tide-300)";
             return (
               <rect
                 key={i}
@@ -266,9 +348,9 @@ export function SignalField() {
                 width={BAR_W}
                 height={BAR_H}
                 transform={`translate(${b.x + BAR_W / 2} ${b.y + BAR_H / 2})`}
-                fill={color}
-                fillOpacity={0.08}
-                stroke={color}
+                fill={r.tone === "orange" ? C.orange : C.lime}
+                stroke={r.tone === "orange" ? "none" : C.line}
+                strokeOpacity={0.6}
                 strokeWidth={1}
                 vectorEffect="non-scaling-stroke"
               />
@@ -279,7 +361,7 @@ export function SignalField() {
         {CAPTIONS.map((c, ci) => (
           <p
             key={ci}
-            className="absolute w-[min(17rem,70%)] -translate-x-1/2 -translate-y-1/2 text-center text-[0.9375rem] font-medium leading-snug md:text-base"
+            className="absolute w-[min(17rem,70%)] -translate-x-1/2 -translate-y-1/2 text-center text-base font-medium leading-snug md:text-lg"
             style={{ left: pct(720), top: `${(c.y / H) * 100}%` }}
           >
             {c.text.split(" ").map((word, wi) => (
@@ -288,25 +370,38 @@ export function SignalField() {
                 ref={(el) => {
                   wordRefs.current[ci][wi] = el;
                 }}
-                style={{ opacity: 0.22 }}
-                className="transition-none"
+                style={{ opacity: 0.2 }}
               >
                 {word}{" "}
               </span>
             ))}
           </p>
         ))}
-
-        <div
-          ref={cardRef}
-          className="absolute w-[min(22rem,88%)] rounded-xl border border-accent/45 bg-night-900/90 p-4 text-left shadow-[0_0_32px_-8px_rgba(255,91,4,0.45)] backdrop-blur"
-          style={{ left: pct(720), top: `${(CARD_Y / H) * 100}%`, opacity: 0, transform: "translate(-50%, 16px)" }}
-        >
-          <p className="label text-accent">One clear decision</p>
-          <p className="mt-2 text-[1.0625rem] font-medium">Reroute SHP-1042 via NH-52</p>
-          <p className="mt-1 font-mono text-[0.8125rem] text-text-muted">+2h 10m · saves ₹6.2L · ready to approve</p>
-        </div>
       </div>
     </section>
+  );
+}
+
+// Top-down wireframe of a truck (cab + trailer + axles) on a flat panel.
+function TruckPanel({ x, mirrored = false }: { x: number; mirrored?: boolean }) {
+  const w = 360;
+  const cy = BASE + BAR_H / 2;
+  const cabX = mirrored ? x + w - 96 : x + 46;
+  const trailerX = mirrored ? x + 24 : x + 120;
+  return (
+    <g stroke={C.line} strokeWidth={1} fill="none" vectorEffect="non-scaling-stroke">
+      <rect x={x} y={BASE} width={w} height={BAR_H} fill={C.bar} stroke="none" />
+      <rect x={cabX} y={cy - 22} width={50} height={44} />
+      <rect x={trailerX} y={cy - 22} width={216} height={44} />
+      {[cabX + 12, trailerX + 56, trailerX + 160].map((ax) => (
+        <g key={ax}>
+          <line x1={ax} y1={cy - 30} x2={ax + 26} y2={cy - 30} strokeWidth={2} />
+          <line x1={ax} y1={cy + 30} x2={ax + 26} y2={cy + 30} strokeWidth={2} />
+        </g>
+      ))}
+      <line x1={cabX + 21} y1={cy} x2={cabX + 29} y2={cy} />
+      <line x1={trailerX + 104} y1={cy} x2={trailerX + 112} y2={cy} />
+      <rect x={mirrored ? x + w - 20 : x + 14} y={cy - 22} width={5} height={44} />
+    </g>
   );
 }
