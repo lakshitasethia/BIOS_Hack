@@ -1,3 +1,4 @@
+import { Intro } from "@/components/landing/intro";
 import { Nav } from "@/components/landing/nav";
 import { Hero } from "@/components/landing/hero";
 import { SignalField } from "@/components/landing/signal-field";
@@ -11,6 +12,7 @@ import { Footer } from "@/components/landing/footer";
 export default function Home() {
   return (
     <>
+      <Intro />
       <Nav />
       <main>
         <Hero />

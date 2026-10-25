@@ -81,6 +81,10 @@ body {
   font-feature-settings: "ss01", "cv11";
 }
 
+.no-intro [data-intro] {
+  display: none;
+}
+
 ::selection {
   background: var(--accent);
   color: var(--on-accent);
