@@ -5,6 +5,8 @@ import { Platform } from "@/components/landing/platform";
 import { Impact } from "@/components/landing/impact";
 import { Responses } from "@/components/landing/responses";
 import { Scenarios } from "@/components/landing/scenarios";
+import { Sources } from "@/components/landing/sources";
+import { Footer } from "@/components/landing/footer";
 
 export default function Home() {
   return (
@@ -17,7 +19,9 @@ export default function Home() {
         <Impact />
         <Responses />
         <Scenarios />
+        <Sources />
       </main>
+      <Footer />
     </>
   );
 }
