@@ -1,11 +1,21 @@
 // Seamless parallax tiles for the hero's dusk yard. Each tile is 4:1 (1600×400),
 // drawn bottom-aligned to the horizon and repeated three times so it can wrap forever.
+// `wire` renders the same geometry as the digital twin: cyan outlines, no fills.
 
 export const TILE = { w: 1600, h: 400 };
 
-function Repeat({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+const CYAN = "rgba(127,212,217,0.85)";
+
+// Paint for a shape: a solid fill, or a cyan outline in wireframe mode.
+function paint(wire: boolean, fill: string, glow = false) {
+  return wire
+    ? { fill: glow ? "rgba(127,212,217,0.22)" : "rgba(127,212,217,0.03)", stroke: CYAN, strokeWidth: 1, vectorEffect: "non-scaling-stroke" as const }
+    : { fill };
+}
+
+function Repeat({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`flex h-full w-max ${className}`}>
+    <div className="flex h-full w-max">
       {[0, 1, 2].map((i) => (
         <svg key={i} viewBox={`0 0 ${TILE.w} ${TILE.h}`} className="block h-full w-auto" style={{ aspectRatio: "4 / 1" }} aria-hidden>
           {children}
@@ -16,10 +26,11 @@ function Repeat({ children, className = "" }: { children: React.ReactNode; class
 }
 
 // Far: hills and the industrial edge of town, softened by haze.
-export function Skyline() {
+export function Skyline({ wire = false }: { wire?: boolean }) {
+  const p = paint(wire, "rgba(74,46,40,0.5)");
   return (
     <Repeat>
-      <g fill="rgba(74,46,40,0.5)">
+      <g {...p}>
         <path d="M0 400 V332 Q200 300 400 320 T800 308 T1200 324 T1600 332 V400 Z" />
         <rect x="170" y="250" width="34" height="150" />
         <rect x="210" y="270" width="34" height="130" />
@@ -42,41 +53,50 @@ export function Skyline() {
 }
 
 // Mid: the yard — container stacks, a warehouse with lit dock doors, light poles.
-export function Yard() {
-  const container = (x: number, y: number, w: number, tone: string, k: number) => (
+export function Yard({ wire = false }: { wire?: boolean }) {
+  const container = (x: number, y: number, w: number, tone: string) => (
     <g key={`${x}-${y}`}>
-      <rect x={x} y={y} width={w} height="52" fill={tone} stroke="#3a281d" strokeOpacity="0.5" />
+      <rect x={x} y={y} width={w} height="52" {...paint(wire, tone)} stroke={wire ? CYAN : "#3a281d"} strokeOpacity={wire ? 1 : 0.5} />
       {Array.from({ length: Math.floor(w / 14) }, (_, i) => (
-        <line key={i} x1={x + 7 + i * 14} y1={y + 4} x2={x + 7 + i * 14} y2={y + 48} stroke="#000" strokeOpacity={0.25 + (k % 2) * 0.1} />
+        <line
+          key={i}
+          x1={x + 7 + i * 14}
+          y1={y + 4}
+          x2={x + 7 + i * 14}
+          y2={y + 48}
+          stroke={wire ? CYAN : "#000"}
+          strokeOpacity={wire ? 0.35 : 0.3}
+          vectorEffect="non-scaling-stroke"
+        />
       ))}
     </g>
   );
   return (
     <Repeat>
       <g>
-        {container(40, 348, 190, "#1d1410", 0)}
-        {container(40, 296, 190, "#24180f", 1)}
-        {container(70, 244, 160, "#1a120d", 0)}
-        {container(236, 348, 150, "#20160f", 1)}
-        <rect x="430" y="228" width="440" height="172" fill="#160f0b" />
-        <path d="M430 228 L650 206 L870 228 Z" fill="#1b130e" />
+        {container(40, 348, 190, "#1d1410")}
+        {container(40, 296, 190, "#24180f")}
+        {container(70, 244, 160, "#1a120d")}
+        {container(236, 348, 150, "#20160f")}
+        <rect x="430" y="228" width="440" height="172" {...paint(wire, "#160f0b")} />
+        <path d="M430 228 L650 206 L870 228 Z" {...paint(wire, "#1b130e")} />
         {[470, 560, 650, 740].map((x) => (
           <g key={x}>
-            <rect x={x} y="318" width="62" height="58" fill="#ffb469" opacity="0.85" />
-            <rect x={x} y="318" width="62" height="6" fill="#fff0d8" opacity="0.6" />
+            <rect x={x} y="318" width="62" height="58" {...paint(wire, "#ffb469", true)} opacity={wire ? 1 : 0.85} />
+            {!wire && <rect x={x} y="318" width="62" height="6" fill="#fff0d8" opacity="0.6" />}
           </g>
         ))}
-        <rect x="430" y="380" width="440" height="20" fill="#0d0907" />
-        {container(980, 348, 190, "#1c130e", 0)}
-        {container(1010, 296, 160, "#24180f", 1)}
-        {container(1176, 348, 120, "#1a120d", 1)}
-        {container(1330, 348, 170, "#1f150f", 0)}
+        <rect x="430" y="380" width="440" height="20" {...paint(wire, "#0d0907")} />
+        {container(980, 348, 190, "#1c130e")}
+        {container(1010, 296, 160, "#24180f")}
+        {container(1176, 348, 120, "#1a120d")}
+        {container(1330, 348, 170, "#1f150f")}
         {[330, 930, 1530].map((x) => (
           <g key={x}>
-            <circle cx={x + 18} cy="138" r="46" fill="#ffcf8f" opacity="0.18" />
-            <rect x={x} y="136" width="4" height="264" fill="#120c09" />
-            <rect x={x} y="132" width="26" height="6" rx="2" fill="#1a120d" />
-            <rect x={x + 14} y="136" width="10" height="3" fill="#fff0d0" />
+            {!wire && <circle cx={x + 18} cy="138" r="46" fill="#ffcf8f" opacity="0.18" />}
+            <rect x={x} y="136" width="4" height="264" {...paint(wire, "#120c09")} />
+            <rect x={x} y="132" width="26" height="6" rx="2" {...paint(wire, "#1a120d")} />
+            <rect x={x + 14} y="136" width="10" height="3" fill={wire ? CYAN : "#fff0d0"} />
           </g>
         ))}
       </g>
