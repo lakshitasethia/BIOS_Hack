@@ -101,6 +101,13 @@ html.lenis body {
   caret-color: #fff;
 }
 
+@keyframes slidein {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
 .no-intro [data-intro] {
   display: none;
 }
