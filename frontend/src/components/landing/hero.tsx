@@ -7,6 +7,7 @@ import { Truck, TRUCK_VIEW } from "@/components/landing/truck";
 import { Foreground, Skyline, TILE, Yard } from "@/components/landing/scene-layers";
 import { INTRO_OPEN_EVENT, introIsOpen } from "@/components/landing/intro";
 import { site } from "@/lib/site";
+import { FrameSequence, loadManifest } from "@/lib/frames/sequence";
 
 /*
  * Hero — a pinned driving sequence (DESIGN.md §7.4).
@@ -48,6 +49,41 @@ export function Hero() {
   const h1Ref = useRef<HTMLHeadingElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
   const cueRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const seqRef = useRef<FrameSequence | null>(null);
+  const footageRef = useRef(false);
+
+  // Real footage, if a frame sequence has been generated (scripts/make-frames.sh).
+  // Until its first frame arrives — or if there is none — the drawn scene plays instead.
+  useEffect(() => {
+    let cancelled = false;
+    let hideScene = 0;
+    loadManifest().then((manifest) => {
+      const canvas = canvasRef.current;
+      if (!manifest || !canvas || cancelled) return;
+      const mobile = window.matchMedia("(max-width: 767px)").matches;
+      const seq = new FrameSequence(canvas, manifest, mobile ? "mobile" : "desktop");
+      seq.onFirstFrame = () => {
+        footageRef.current = true;
+        canvas.style.opacity = "1";
+        hideScene = window.setTimeout(() => {
+          [skyRef.current, truckRef.current, fgRef.current?.parentElement].forEach((el) => {
+            if (el) el.style.visibility = "hidden";
+          });
+        }, 700);
+      };
+      seqRef.current = seq;
+    });
+    const onResize = () => seqRef.current?.resize();
+    window.addEventListener("resize", onResize);
+    return () => {
+      cancelled = true;
+      clearTimeout(hideScene);
+      window.removeEventListener("resize", onResize);
+      seqRef.current?.destroy();
+      seqRef.current = null;
+    };
+  }, []);
 
   // As the intro parts, the camera settles in from slightly closer.
   useEffect(() => {
@@ -96,6 +132,9 @@ export function Hero() {
     };
 
     const render = (now: number) => {
+      const footage = footageRef.current;
+      if (footage) seqRef.current?.setProgress(p);
+      else {
       const d = cruise + p * SCROLL_DISTANCE;
       const slide = (el: HTMLDivElement | null, speed: number, w: number) => {
         if (el) el.style.transform = `translate3d(${-((d * speed) % w)}px,0,0)`;
@@ -115,6 +154,7 @@ export function Hero() {
       if (cameraRef.current) cameraRef.current.style.transform = `scale(${1 + push * 0.14})`;
       const bob = Math.sin(now / 110) * 0.5 + Math.sin(now / 47) * 0.25;
       if (truckRef.current) truckRef.current.style.transform = `translate3d(calc(-50% + ${push * 5}vw), calc(-100% + ${bob}px), 0)`;
+      }
 
       const twin = span(p, 0.48, 0.62);
       if (solidRef.current) solidRef.current.style.opacity = String(1 - twin);
@@ -122,9 +162,13 @@ export function Hero() {
       if (wireRef.current) wireRef.current.style.opacity = String(twin);
       if (twinRef.current) twinRef.current.style.opacity = String(twin);
       if (skyRef.current) skyRef.current.style.opacity = String(1 - twin * 0.94);
+      // With footage, the twin is a graded "system view" of the frame under the grid.
+      if (footage && canvasRef.current) {
+        canvasRef.current.style.filter = twin ? `grayscale(${twin}) brightness(${1 - twin * 0.55}) contrast(${1 + twin * 0.25})` : "";
+      }
       if (tagsRef.current) {
         const t = span(p, 0.6, 0.7);
-        tagsRef.current.style.opacity = String(t);
+        tagsRef.current.style.opacity = String(footage ? 0 : t);
         tagsRef.current.style.transform = `translateY(${(1 - t) * 10}px)`;
       }
 
@@ -191,6 +235,7 @@ export function Hero() {
     <section ref={sectionRef} data-nav="light" className="relative h-[380vh] bg-paper" aria-label="Introduction">
       <div className="sticky top-0 h-[100svh] overflow-hidden rounded-b-[28px] bg-[#05090a]">
         <div ref={entranceRef} className="absolute inset-0 will-change-transform">
+          <canvas ref={canvasRef} aria-hidden className="absolute inset-0 size-full opacity-0 transition-opacity duration-700" />
           <div ref={cameraRef} className="absolute inset-0 origin-[66%_58%] will-change-transform">
             {/* ---------- the real world ---------- */}
             <div ref={skyRef} className="absolute inset-0">

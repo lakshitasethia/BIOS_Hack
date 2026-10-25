@@ -248,6 +248,12 @@ Depth comes from **light, not shadow**.
 - All images: WebP or AVIF, `next/image`, explicit dimensions, blur placeholder.
 - **No text baked into images.**
 
+### Hero footage (scroll-scrubbed frames)
+The landing hero plays a pre-rendered frame sequence drawn to a canvas: scroll position picks the frame, so the camera only moves when the reader scrolls.
+- Source: one continuous 8–10 s clip, 16:9, ≥1080p, no cuts, no text or logos. Frame 0 is the resting hero: truck in side profile, horizon at ~60% height, sky above and dark ground below with room for the headline.
+- Convert with `frontend/scripts/make-frames.sh <clip.mp4> [count]` (default 300 frames). It writes desktop (1920w) and mobile (1080w) WebP frames plus `public/frames/hero/manifest.json`; the hero picks them up automatically.
+- Without a manifest the hero falls back to the drawn parallax scene.
+
 ---
 
 ## 7. Motion

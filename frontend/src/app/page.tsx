@@ -1,5 +1,6 @@
 import { Intro } from "@/components/landing/intro";
 import { Nav } from "@/components/landing/nav";
+import { SmoothScroll } from "@/components/landing/smooth-scroll";
 import { Hero } from "@/components/landing/hero";
 import { SignalField } from "@/components/landing/signal-field";
 import { Platform } from "@/components/landing/platform";
@@ -12,6 +13,7 @@ import { Footer } from "@/components/landing/footer";
 export default function Home() {
   return (
     <>
+      <SmoothScroll />
       <Intro />
       <Nav />
       <main>
