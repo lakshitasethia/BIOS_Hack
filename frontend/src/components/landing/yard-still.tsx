@@ -24,6 +24,7 @@ function mix(a: Shot, b: Shot, t: number): Shot {
     radius: lerp(a.radius, b.radius, t),
     night: lerp(a.night, b.night, t),
     routes: lerp(a.routes, b.routes, t),
+    dissolve: lerp(a.dissolve ?? 1, b.dissolve ?? 1, t),
   };
 }
 

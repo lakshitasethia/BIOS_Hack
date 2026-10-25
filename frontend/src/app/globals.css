@@ -93,12 +93,6 @@ html.lenis body {
   overflow: hidden;
 }
 
-@keyframes ticker {
-  to {
-    transform: translateX(-50%);
-  }
-}
-
 .no-intro [data-intro] {
   display: none;
 }

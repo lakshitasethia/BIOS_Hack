@@ -35,11 +35,16 @@ const INK = "#0b2a2c";
 
 // One shot per step, relative to the truck — the camera flies between them.
 const SHOTS: Shot[] = [
-  { dist: 8, cam: [3, 42, 10], look: [3, 0, 0], fov: 42, convert: 0, radius: 12, night: 0.05, routes: 0 },
-  { dist: 8, cam: [11, 27, 18], look: [-1, 1, 0], fov: 38, convert: 0.62, radius: 11, night: 0.15, routes: 0 },
-  { dist: 8, cam: [28, 54, 27], look: [26, 0, 2], fov: 44, convert: 0, radius: 12, night: 0.12, routes: 1 },
-  { dist: 8, cam: [31, 36, 31], look: [24, 0, 3], fov: 40, convert: 0.5, radius: 15, night: 0.32, routes: 1 },
+  { dist: 8, cam: [16, 30, 25], look: [3, 0, -2], fov: 40, convert: 0, radius: 12, night: 0.1, routes: 0, dissolve: 0 },
+  { dist: 8, cam: [11, 26, 17], look: [-1, 1, 0], fov: 38, convert: 0.62, radius: 11, night: 0.18, routes: 0, dissolve: 1 },
+  { dist: 8, cam: [28, 52, 27], look: [26, 0, 2], fov: 44, convert: 0, radius: 12, night: 0.14, routes: 1, dissolve: 0 },
+  { dist: 8, cam: [31, 34, 31], look: [24, 0, 3], fov: 40, convert: 0.5, radius: 15, night: 0.32, routes: 1, dissolve: 0.6 },
 ];
+
+// The "neon" type-on: characters flash green as they appear, then settle to ink.
+const NEON = [95, 209, 58];
+const INK_RGB = [11, 42, 44];
+const TRAIL = 16;
 
 const HUD = [
   { k: "Signal · IMD red alert", v: "Khandala ghat · 210 mm forecast", tone: "#7fd4d9" },
@@ -61,7 +66,8 @@ export function Introducing() {
     // mid-step the world digitises, then settles back to real as the camera moves on
     const f = t - Math.floor(t);
     const pulse = Math.sin(Math.PI * Math.min(1, Math.max(0, (f - 0.15) / 0.7)));
-    return { ...shot, convert: Math.min(1, shot.convert + pulse * 0.42), radius: shot.radius + pulse * 10 };
+    // the pulse lays glowing wireframe over the real scene rather than eating it away
+    return { ...shot, convert: Math.min(1, shot.convert + pulse * 0.32), radius: shot.radius + pulse * 14 };
   }, []);
 
   useEffect(() => {
@@ -81,9 +87,22 @@ export function Introducing() {
         // typing progress: starts as the step enters the lower third, done by mid-screen
         const p = clamp01((vh * 0.8 - r.top) / (vh * 0.45));
         const chars = charRefs.current[i];
-        const n = Math.floor(p * chars.length);
+        const n = p * (chars.length + TRAIL);
         chars.forEach((c, ci) => {
-          if (c) c.style.color = ci < n ? INK : "";
+          if (!c) return;
+          const d = n - ci;
+          if (d <= 0) {
+            c.style.color = "";
+            c.style.textShadow = "";
+          } else if (d >= TRAIL) {
+            c.style.color = INK;
+            c.style.textShadow = "";
+          } else {
+            const t = d / TRAIL;
+            const rgb = NEON.map((v, k) => Math.round(v + (INK_RGB[k] - v) * t));
+            c.style.color = `rgb(${rgb.join(",")})`;
+            c.style.textShadow = `0 0 ${14 * (1 - t)}px rgba(95,209,58,${0.55 * (1 - t)})`;
+          }
         });
       });
       flowRef.current = Math.min(STEPS.length - 1, Math.max(0, flow - 0.5));
@@ -110,7 +129,7 @@ export function Introducing() {
         </p>
       </div>
 
-      <div className="mx-auto mt-16 grid max-w-[1440px] gap-10 px-5 md:mt-24 md:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16 lg:pl-[max(2rem,calc((100vw-80rem)/2+2rem))] lg:pr-0">
+      <div className="mx-auto mt-16 grid max-w-[1440px] gap-10 px-5 md:mt-24 md:px-8 lg:max-w-none lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-14 lg:pl-[max(2rem,calc((100vw-80rem)/2+2rem))] lg:pr-0">
         <div>
           {STEPS.map((s, i) => (
             <div
@@ -118,16 +137,16 @@ export function Introducing() {
               ref={(el) => {
                 itemRefs.current[i] = el;
               }}
-              className="relative flex min-h-[40vh] flex-col justify-center py-8 lg:min-h-[56vh]"
+              className="relative flex min-h-[46vh] flex-col justify-center py-10 lg:min-h-[78vh]"
             >
               <span className="absolute -left-1 top-1/2 font-mono text-[0.6875rem] text-black/35 lg:-left-8">0{i + 1}</span>
               <h3
-                className="text-[1.375rem] font-medium tracking-[-0.02em] transition-colors duration-500"
+                className="text-[clamp(1.75rem,2.7vw,2.75rem)] font-semibold leading-[1.08] tracking-[-0.03em] transition-colors duration-500"
                 style={{ color: i === active ? INK : "rgba(11,42,44,0.2)" }}
               >
                 {s.title}
               </h3>
-              <p className="mt-6 max-w-xl text-[clamp(1.25rem,1.9vw,1.625rem)] leading-[1.32] tracking-[-0.015em]" style={{ color: "rgba(11,42,44,0.18)" }}>
+              <p className="mt-8 max-w-2xl text-[clamp(1.6rem,2.6vw,2.6rem)] leading-[1.2] tracking-[-0.025em]" style={{ color: "rgba(11,42,44,0.16)" }}>
                 {Array.from(s.body).map((ch, ci) => (
                   <span
                     key={ci}
@@ -145,7 +164,7 @@ export function Introducing() {
 
         <div className="hidden lg:block">
           <div
-            className="sticky top-[10vh] h-[80vh] overflow-hidden"
+            className="sticky top-[7vh] h-[86vh] overflow-hidden rounded-l-xl"
             style={{
               clipPath:
                 "polygon(18px 0, 100% 0, 100% 100%, 18px 100%, 18px 82%, 0 calc(82% - 18px), 0 calc(16% + 18px), 18px 16%)",

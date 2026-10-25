@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
  */
 
 const W = 1440;
-const H = 1420;
+const H = 1200;
 const BAR_W = 20;
 const BAR_H = 110;
 const FIELD_TOP = 24;
@@ -100,7 +100,7 @@ const RIDERS: Rider[] = [
     tone: "orange",
     lag: 40,
     d: (x, y) =>
-      `M${x} ${y} L${x} ${y + 140} C${x} 430, 790 480, 790 640 L790 940 C790 1090, ${DOCK.x} 1110, ${DOCK.x} 1230 L${DOCK.x} ${DOCK.y}`,
+      `M${x} ${y} L${x} ${y + 140} C${x} 430, 790 480, 790 640 L790 905 C790 990, ${DOCK.x} 1000, ${DOCK.x} 1050 L${DOCK.x} ${DOCK.y}`,
   },
 ];
 

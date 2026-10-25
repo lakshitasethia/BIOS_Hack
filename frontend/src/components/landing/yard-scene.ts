@@ -28,6 +28,7 @@ const FIELD = /* glsl */ `
   uniform float uConvert;
   uniform vec2 uOrigin;
   uniform float uRadius;
+  uniform float uDissolve;
   float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
   float convField(vec3 wp) {
     float cell = hash3(floor(wp * 0.8));
@@ -40,6 +41,7 @@ type Uniforms = {
   uConvert: { value: number };
   uOrigin: { value: THREE.Vector2 };
   uRadius: { value: number };
+  uDissolve: { value: number };
   uTime: { value: number };
   uPixelRatio: { value: number };
 };
@@ -50,6 +52,7 @@ function solidMaterial(U: Uniforms, params: THREE.MeshStandardMaterialParameters
     shader.uniforms.uConvert = U.uConvert;
     shader.uniforms.uOrigin = U.uOrigin;
     shader.uniforms.uRadius = U.uRadius;
+    shader.uniforms.uDissolve = U.uDissolve;
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vWp;")
       .replace("#include <project_vertex>", "#include <project_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;");
@@ -57,11 +60,11 @@ function solidMaterial(U: Uniforms, params: THREE.MeshStandardMaterialParameters
       .replace("#include <common>", `#include <common>\nvarying vec3 vWp;\n${FIELD}`)
       .replace(
         "#include <clipping_planes_fragment>",
-        "#include <clipping_planes_fragment>\nfloat cf = convField(vWp);\nfloat keep = smoothstep(uConvert - 0.14, uConvert, cf);\nif (hash3(vec3(floor(gl_FragCoord.xy), 1.0)) > keep) discard;",
+        "#include <clipping_planes_fragment>\nfloat cf = convField(vWp);\nfloat keep = smoothstep(uConvert * uDissolve - 0.14, uConvert * uDissolve, cf);\nif (hash3(vec3(floor(gl_FragCoord.xy), 1.0)) > keep) discard;",
       )
       .replace(
         "#include <emissivemap_fragment>",
-        "#include <emissivemap_fragment>\nfloat kb = smoothstep(uConvert - 0.14, uConvert, cf);\ntotalEmissiveRadiance += vec3(0.35, 0.75, 0.82) * 1.6 * kb * (1.0 - kb) * step(0.0005, uConvert);",
+        "#include <emissivemap_fragment>\nfloat kb = smoothstep(uConvert * uDissolve - 0.14, uConvert * uDissolve, cf);\ntotalEmissiveRadiance += vec3(0.35, 0.75, 0.82) * 1.6 * kb * (1.0 - kb) * step(0.0005, uConvert);",
       );
   };
   return m;
@@ -142,6 +145,7 @@ export type Shot = {
   radius: number; // how far conversion spreads from the truck
   night: number;
   routes: number; // 0..1 visibility of the route lines
+  dissolve?: number; // 1 = surfaces dissolve as they convert, 0 = wireframe only overlays them
 };
 
 type Riser = { obj: THREE.Object3D; at: number };
@@ -154,6 +158,7 @@ export class YardScene {
     uConvert: { value: 0 },
     uOrigin: { value: new THREE.Vector2() },
     uRadius: { value: 70 },
+    uDissolve: { value: 1 },
     uTime: { value: 0 },
     uPixelRatio: { value: 1 },
   };
@@ -592,6 +597,7 @@ export class YardScene {
     const p = this.p;
     this.U.uTime.value = time / 1000;
     this.U.uRadius.value = 70;
+    this.U.uDissolve.value = 1;
 
     // drive
     const dist = 46 * span(p, 0.03, 0.7);
@@ -666,6 +672,7 @@ export class YardScene {
     this.U.uOrigin.value.set(s.dist - 2, 0);
     this.U.uRadius.value = s.radius;
     this.U.uConvert.value = s.convert;
+    this.U.uDissolve.value = s.dissolve ?? 1;
     for (const r of this.risers) {
       r.obj.scale.y = 1;
       r.obj.visible = true;
