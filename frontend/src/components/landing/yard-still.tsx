@@ -27,13 +27,32 @@ function mix(a: Shot, b: Shot, t: number): Shot {
   };
 }
 
-export function YardStill({ shots, index, className = "" }: { shots: Shot[]; index: number; className?: string }) {
+// Blend a list of shots at a fractional position t (0 … shots.length - 1), eased per segment.
+export function sampleShots(shots: Shot[], t: number): Shot {
+  const max = shots.length - 1;
+  const c = Math.min(max, Math.max(0, t));
+  const i = Math.min(max - 1, Math.floor(c));
+  const f = c - i;
+  return mix(shots[i], shots[i + 1] ?? shots[i], f * f * (3 - 2 * f));
+}
+
+type Props = {
+  shots: Shot[];
+  index: number;
+  className?: string;
+  // When given, the shot is read from this every frame (e.g. driven by scroll) instead of `index`.
+  getShot?: () => Shot;
+};
+
+export function YardStill({ shots, index, className = "", getShot }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const targetRef = useRef(shots[index]);
+  const getShotRef = useRef(getShot);
 
   useEffect(() => {
     targetRef.current = shots[index];
-  }, [shots, index]);
+    getShotRef.current = getShot;
+  }, [shots, index, getShot]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -49,7 +68,8 @@ export function YardStill({ shots, index, className = "" }: { shots: Shot[]; ind
       if (!scene || disposed) return;
       const dt = Math.min(0.05, (time - last) / 1000);
       last = time;
-      current = mix(current, targetRef.current, 1 - Math.exp(-dt * 3.2));
+      const target = getShotRef.current ? getShotRef.current() : targetRef.current;
+      current = mix(current, target, 1 - Math.exp(-dt * (getShotRef.current ? 7 : 3.2)));
       scene.setShot(current);
       scene.render(time);
       raf = visible ? requestAnimationFrame(loop) : 0;

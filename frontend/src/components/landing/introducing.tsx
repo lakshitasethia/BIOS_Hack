@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { site } from "@/lib/site";
-import { YardStill } from "@/components/landing/yard-still";
+import { YardStill, sampleShots } from "@/components/landing/yard-still";
 import type { Shot } from "@/components/landing/yard-scene";
 
 /*
@@ -53,6 +53,16 @@ export function Introducing() {
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const charRefs = useRef<(HTMLSpanElement | null)[][]>(STEPS.map(() => []));
   const [active, setActive] = useState(0);
+  // continuous position through the steps (0 … 3.x), read by the 3D panel every frame
+  const flowRef = useRef(0);
+  const getShot = useCallback((): Shot => {
+    const t = flowRef.current;
+    const shot = sampleShots(SHOTS, t);
+    // mid-step the world digitises, then settles back to real as the camera moves on
+    const f = t - Math.floor(t);
+    const pulse = Math.sin(Math.PI * Math.min(1, Math.max(0, (f - 0.15) / 0.7)));
+    return { ...shot, convert: Math.min(1, shot.convert + pulse * 0.42), radius: shot.radius + pulse * 10 };
+  }, []);
 
   useEffect(() => {
     let raf = 0;
@@ -60,10 +70,14 @@ export function Introducing() {
     const tick = () => {
       const vh = window.innerHeight;
       let next = 0;
+      let flow = 0;
       itemRefs.current.forEach((el, i) => {
         if (!el) return;
         const r = el.getBoundingClientRect();
         if (r.top < vh * 0.55) next = i;
+        // how far this step's centre has travelled past the middle of the screen
+        const through = clamp01((vh * 0.5 - (r.top + r.height / 2)) / r.height + 0.5);
+        if (through > 0) flow = i + through;
         // typing progress: starts as the step enters the lower third, done by mid-screen
         const p = clamp01((vh * 0.8 - r.top) / (vh * 0.45));
         const chars = charRefs.current[i];
@@ -72,6 +86,7 @@ export function Introducing() {
           if (c) c.style.color = ci < n ? INK : "";
         });
       });
+      flowRef.current = Math.min(STEPS.length - 1, Math.max(0, flow - 0.5));
       if (next !== current) {
         current = next;
         setActive(next);
@@ -130,13 +145,13 @@ export function Introducing() {
 
         <div className="hidden lg:block">
           <div
-            className="sticky top-[14vh] h-[72vh] overflow-hidden rounded-r-none"
+            className="sticky top-[10vh] h-[80vh] overflow-hidden"
             style={{
               clipPath:
                 "polygon(18px 0, 100% 0, 100% 100%, 18px 100%, 18px 82%, 0 calc(82% - 18px), 0 calc(16% + 18px), 18px 16%)",
             }}
           >
-            <YardStill shots={SHOTS} index={active} />
+            <YardStill shots={SHOTS} index={active} getShot={getShot} />
             <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,rgba(5,9,10,0.55),transparent_45%)]" />
             {HUD.map((h, i) => (
               <div
