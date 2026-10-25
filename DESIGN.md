@@ -489,6 +489,7 @@ Firing one plays the whole loop on the control tower (alert slides in → map pu
 | Scroll and cinematic motion | **GSAP** + **ScrollTrigger**, with **Lenis** smooth scroll on the landing page only |
 | UI micro-motion | **Motion** (`motion/react`) |
 | Map | **MapLibre GL** (custom dark style) + **deck.gl** layers for routes, trips and overlays |
+| Landing hero | **three.js** real-time yard scene (`yard-scene.ts`): scroll-keyframed camera, shader dissolve into edges + point cloud; 2D SVG scene as the no-WebGL fallback |
 | Charts | **Recharts**, themed |
 | Icons | **lucide-react** |
 | Fonts | `geist` package |
