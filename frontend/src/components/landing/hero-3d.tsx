@@ -14,9 +14,9 @@ import { site } from "@/lib/site";
  */
 
 const BEATS = [
-  { words: "See disruptions before they reach your customers.".split(" "), in: [0.05, 0.2], out: [0.27, 0.33] },
-  { words: "Vectrix turns every truck, route and warehouse".split(" "), in: [0.47, 0.62], out: [0.7, 0.76] },
-  { words: "into one live risk picture.".split(" "), in: [0.8, 0.9], out: [2, 2] },
+  { words: "See disruptions before they reach your customers.".split(" "), in: [0.04, 0.16], out: [0.22, 0.27] },
+  { words: "Vectrix turns every truck, route and warehouse".split(" "), in: [0.4, 0.52], out: [0.6, 0.66] },
+  { words: "into one live risk picture.".split(" "), in: [0.89, 0.96], out: [2, 2] },
 ] as const;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
@@ -76,7 +76,7 @@ export function Hero() {
           w.style.color = k > 0 && k < 1 ? "var(--color-lime)" : "";
         });
       });
-      const cta = span(p, [0.9, 0.97]);
+      const cta = span(p, [0.96, 0.995]);
       if (ctaRef.current) {
         ctaRef.current.style.opacity = String(cta);
         ctaRef.current.style.transform = `translateY(${(1 - cta) * 14}px)`;
@@ -129,7 +129,7 @@ export function Hero() {
   if (fallback) return <Hero2D />;
 
   return (
-    <section ref={sectionRef} data-nav="light" className="relative h-[520vh] bg-paper" aria-label="Introduction">
+    <section ref={sectionRef} data-nav="light" className="relative h-[640vh] bg-paper" aria-label="Introduction">
       <div className="sticky top-0 h-[100svh] overflow-hidden rounded-b-[28px] bg-[#05090a]">
         <div ref={stageRef} className="absolute inset-0 will-change-transform">
           <canvas ref={canvasRef} aria-hidden className="block size-full" />

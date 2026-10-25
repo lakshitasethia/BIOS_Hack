@@ -8,7 +8,9 @@ import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.j
  *   0.30  the camera cranes up into an aerial three-quarter view
  *   0.42  conversion: geometry dissolves chunk by chunk — outward from the truck — into
  *         glowing edges and point-cloud dust, while dusk gives way to a starfield
- *   0.68  the camera swings behind the truck; the yard fades, the truck floats alone
+ *   0.58  the camera swings behind the truck; the yard fades, the truck floats alone
+ *   0.72  it rises to a top-down view along the truck's spine
+ *   0.86  the truck thins away into converging smoke tendrils for the final line
  * Units are metres. The truck drives along +x.
  */
 
@@ -41,7 +43,7 @@ type Uniforms = {
 };
 
 function solidMaterial(U: Uniforms, params: THREE.MeshStandardMaterialParameters) {
-  const m = new THREE.MeshStandardMaterial({ roughness: 0.8, metalness: 0.15, ...params });
+  const m = new THREE.MeshStandardMaterial({ roughness: 0.8, metalness: 0.15, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, ...params });
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uConvert = U.uConvert;
     shader.uniforms.uOrigin = U.uOrigin;
@@ -56,7 +58,7 @@ function solidMaterial(U: Uniforms, params: THREE.MeshStandardMaterialParameters
       )
       .replace(
         "#include <emissivemap_fragment>",
-        "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(0.62, 0.9, 0.93) * 4.0 * (1.0 - smoothstep(0.0, 0.035, cf - uConvert)) * step(0.0005, uConvert);",
+        "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(0.35, 0.75, 0.82) * 0.9 * (1.0 - smoothstep(0.0, 0.025, cf - uConvert)) * step(0.0005, uConvert);",
       );
   };
   return m;
@@ -78,7 +80,7 @@ function lineMaterial(U: Uniforms, fade: { value: number }) {
       varying vec3 vWp;
       void main() {
         float cf = convField(vWp);
-        float a = smoothstep(cf - 0.06, cf, uConvert) * uFade;
+        float a = smoothstep(cf - 0.42, cf - 0.04, uConvert) * uFade;
         if (a < 0.003) discard;
         gl_FragColor = vec4(uColor, a * 0.95);
       }`,
@@ -112,7 +114,7 @@ function pointsMaterial(U: Uniforms, fade: { value: number }, size = 2.2) {
         float d = length(gl_PointCoord - 0.5);
         if (d > 0.5) discard;
         float cf = convField(vWp);
-        float a = smoothstep(cf - 0.08, cf, uConvert) * uFade * vTw * (1.0 - d * 2.0);
+        float a = smoothstep(cf - 0.16, cf, uConvert) * uFade * vTw * (1.0 - d * 2.0);
         if (a < 0.003) discard;
         gl_FragColor = vec4(0.88, 0.97, 1.0, a);
       }`,
@@ -152,6 +154,9 @@ export class YardScene {
   private fovs: number[];
   private keyP: number[];
   private p = 0;
+  private smoke: THREE.ShaderMaterial;
+  private smokeScene = new THREE.Scene();
+  private smokeCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private groundMats: THREE.MeshStandardMaterial[] = [];
   private glowMats: THREE.MeshBasicMaterial[] = [];
 
@@ -227,16 +232,19 @@ export class YardScene {
     this.headlight.target.position.set(22, 0, 0);
     this.truck.add(this.headlight, this.headlight.target);
     this.buildYard();
+    this.buildTrailerFrames();
+    this.smoke = this.buildSmoke();
 
     // camera path, relative to the truck — keyframed by scroll progress
     const keys: [number, [number, number, number], [number, number, number], number][] = [
       [0.0, [-1.8, 2.3, 27], [-1.8, 2.2, 0], 30],
-      [0.12, [-1.2, 2.6, 25], [-1.2, 2.3, 0], 30],
-      [0.32, [15, 13, 27], [0, 1.6, 0], 34],
-      [0.5, [24, 25, 31], [2, 0, -5], 36],
-      [0.68, [-24, 17, 11], [0, 2, 0], 34],
-      [0.86, [-21, 13, 13], [0.5, 1.8, 0], 34],
-      [1.0, [-18, 11.5, 16], [1.5, 2.2, 0], 33],
+      [0.1, [-1.2, 2.6, 25], [-1.2, 2.3, 0], 30],
+      [0.26, [15, 13, 27], [0, 1.6, 0], 34],
+      [0.42, [24, 25, 31], [2, 0, -5], 36],
+      [0.58, [-24, 17, 11], [0, 2, 0], 34],
+      [0.72, [-21, 13, 12], [0.5, 1.8, 0], 34],
+      [0.86, [-11, 16, 2.2], [5, 0.8, 0], 36],
+      [1.0, [-5, 12.5, 1.4], [6.5, 0.4, 0], 34],
     ];
     this.keyP = keys.map((k) => k[0]);
     this.camCurve = new THREE.CatmullRomCurve3(keys.map((k) => new THREE.Vector3(...k[1])), false, "centripetal");
@@ -452,6 +460,75 @@ export class YardScene {
     }
   }
 
+  // Internal structure for the trailer's twin: cross-section frames and nested boxes,
+  // so the wireframe reads as an engineered object rather than a hollow shell.
+  private buildTrailerFrames() {
+    const v: number[] = [];
+    const rect = (x: number, y0: number, y1: number, z: number) => {
+      v.push(x, y0, -z, x, y1, -z, x, y1, -z, x, y1, z, x, y1, z, x, y0, z, x, y0, z, x, y0, -z);
+    };
+    const boxLines = (x0: number, x1: number, y0: number, y1: number, z: number) => {
+      rect(x0, y0, y1, z);
+      rect(x1, y0, y1, z);
+      for (const [y, zz] of [[y0, -z], [y1, -z], [y1, z], [y0, z]]) v.push(x0, y, zz, x1, y, zz);
+    };
+    for (let x = -9.9; x <= 3.5; x += 1.12) rect(x, 1.3, 4.0, 1.25);
+    boxLines(-9.4, -4.6, 1.7, 3.5, 0.85);
+    boxLines(-4.2, 0.6, 1.9, 3.7, 0.9);
+    boxLines(-8.6, 2.8, 2.25, 3.25, 0.45);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(v, 3));
+    this.truck.add(new THREE.LineSegments(g, lineMaterial(this.U, this.truckFade)));
+  }
+
+  // Final beat: soft strands of smoke curling in toward the centre of the frame.
+  private buildSmoke() {
+    const m = new THREE.ShaderMaterial({
+      uniforms: { uSmoke: { value: 0 }, uTime: { value: 0 }, uAspect: { value: 1 } },
+      vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+      fragmentShader: /* glsl */ `
+        uniform float uSmoke, uTime, uAspect;
+        varying vec2 vUv;
+        float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float noise(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          vec2 u = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y);
+        }
+        float fbm(vec2 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * noise(p); p *= 2.03; a *= 0.5; } return s; }
+        // one family of strands: arms swirl in from the edges and taper to points near the centre
+        float strands(vec2 q, float arms, float twist, float width, float speed, float seed) {
+          float r = length(q);
+          float a = atan(q.y, q.x);
+          float bend = twist * r + 0.25 * sin(r * 3.0 - uTime * speed + seed) + 0.45 * (fbm(q * 1.8 + seed) - 0.5);
+          float k = (a + bend) * arms / 6.2831853;
+          float d = abs(fract(k) - 0.5) * 6.2831853 / arms * r;
+          float w = width * (0.08 + r * r);
+          float s = exp(-d * d / (w * w));
+          float bright = 0.35 + 0.65 * hash(vec2(floor(k), seed));
+          return s * bright * smoothstep(0.12, 0.5, r) * (1.0 - smoothstep(0.9, 1.5, r));
+        }
+        void main() {
+          vec2 q = (vUv - 0.5) * vec2(uAspect, 1.0) * 1.6;
+          float near = strands(q, 5.0, 0.55, 0.16, 0.5, 1.3);
+          float far = strands(q * 1.25, 7.0, -0.45, 0.07, 0.8, 7.1) * 0.45;
+          float haze = fbm(q * 1.4 + uTime * 0.03) * 0.12;
+          float glow = (near + far) * (0.55 + 0.45 * fbm(q * 2.4 - uTime * 0.05)) * 0.75 + haze;
+          vec3 col = mix(vec3(0.36, 0.42, 0.48), vec3(0.82, 0.88, 0.94), clamp(near, 0.0, 1.0));
+          // a faint grid behind the smoke, like the system resolving underneath
+          vec2 g = abs(fract(q * 3.0) - 0.5);
+          float grid = (1.0 - smoothstep(0.0, 0.015, min(g.x, g.y))) * 0.05;
+          gl_FragColor = vec4(col * glow + vec3(grid), 1.0) * uSmoke;
+        }`,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    this.smokeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), m));
+    return m;
+  }
+
   // ---- runtime
 
   resize(w: number, h: number) {
@@ -474,7 +551,7 @@ export class YardScene {
     this.U.uTime.value = time / 1000;
 
     // drive
-    const dist = 46 * span(p, 0.03, 0.8);
+    const dist = 46 * span(p, 0.03, 0.7);
     this.truck.position.x = dist;
     this.wheels.forEach((w) => (w.rotation.z = -dist / 0.52));
     this.U.uOrigin.value.set(dist - 2, 0);
@@ -487,20 +564,26 @@ export class YardScene {
     }
 
     // conversion and night
-    const convert = smooth(span(p, 0.42, 0.74)) * 1.02;
+    const convert = smooth(span(p, 0.34, 0.62)) * 1.02;
     this.U.uConvert.value = convert;
-    const night = smooth(span(p, 0.44, 0.7));
+    const night = smooth(span(p, 0.38, 0.6));
     this.sky.uniforms.uNight.value = night;
-    this.stars.uniforms.uAlpha.value = smooth(span(p, 0.5, 0.74));
+    this.stars.uniforms.uAlpha.value = smooth(span(p, 0.42, 0.62)) * (1 - smooth(span(p, 0.9, 1)) * 0.5);
     this.fog.color.set("#c98a62").lerp(new THREE.Color("#020304"), night);
     this.fog.far = 230 + night * 400;
     this.hemi.intensity = 1.6 * (1 - night * 0.85);
     this.sun.intensity = 2.2 * (1 - night);
     this.headlight.intensity = 60 * (1 - night);
-    this.yardFade.value = 1 - smooth(span(p, 0.74, 0.86));
+    this.yardFade.value = 1 - smooth(span(p, 0.62, 0.72));
+    // finale: the truck thins away as the smoke tendrils gather
+    this.truckFade.value = 1 - smooth(span(p, 0.88, 0.96));
+    const smokeIn = smooth(span(p, 0.85, 0.95));
+    this.smoke.uniforms.uSmoke.value = smokeIn;
+    this.smoke.uniforms.uTime.value = time / 1000;
+    this.smoke.uniforms.uAspect.value = this.camera.aspect;
     const dark = new THREE.Color("#050607");
     this.groundMats.forEach((m) => m.color.copy(m.userData.base).lerp(dark, night));
-    const glow = 1 - smooth(span(p, 0.44, 0.62));
+    const glow = 1 - smooth(span(p, 0.38, 0.56));
     this.glowMats.forEach((m) => {
       m.opacity = glow;
       m.visible = glow > 0.01;
@@ -526,7 +609,12 @@ export class YardScene {
     this.camera.fov = fov * (this.camera.userData.fovScale ?? 1);
     this.camera.updateProjectionMatrix();
 
+    this.renderer.autoClear = true;
     this.renderer.render(this.scene, this.camera);
+    if (smokeIn > 0.001) {
+      this.renderer.autoClear = false;
+      this.renderer.render(this.smokeScene, this.smokeCam);
+    }
   }
 
   dispose() {
