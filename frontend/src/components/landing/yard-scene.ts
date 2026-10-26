@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { MeshSurfaceSampler } from "three/examples/jsm/math/MeshSurfaceSampler.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 /*
  * The hero's 3D yard (DESIGN.md §7.4), driven entirely by scroll progress p ∈ [0, 1]:
@@ -165,7 +166,7 @@ export class YardScene {
   private truckFade = { value: 1 };
   private yardFade = { value: 1 };
   private truck = new THREE.Group();
-  private wheels: THREE.Mesh[] = [];
+  private wheels: THREE.Object3D[] = [];
   private risers: Riser[] = [];
   private sky: THREE.ShaderMaterial;
   private stars: THREE.ShaderMaterial;
@@ -254,8 +255,8 @@ export class YardScene {
     this.buildGround();
     this.buildTruck();
     this.headlight = new THREE.SpotLight("#ffe2b8", 60, 45, 0.5, 0.6, 1.4);
-    this.headlight.position.set(6.7, 1.3, 0);
-    this.headlight.target.position.set(22, 0, 0);
+    this.headlight.position.set(7.5, 1.4, 0);
+    this.headlight.target.position.set(24, 0, 0);
     this.truck.add(this.headlight, this.headlight.target);
     this.buildYard();
     this.buildTrailerFrames();
@@ -352,64 +353,201 @@ export class YardScene {
     this.scene.add(new THREE.Points(g, pointsMaterial(this.U, this.yardFade, 1.6)));
   }
 
+  // Conventional sleeper-cab tractor and a ribbed dry-van trailer, in metres, driving along +x.
+  // Origin sits on the road under the trailer's centre line; the rig runs from the rear
+  // bumper (x ≈ -11.2) to the front bumper (x ≈ 7.8).
   private buildTruck() {
     const T = this.truck;
-    const trailerMat = solidMaterial(this.U, { color: "#8f8378", roughness: 0.55, metalness: 0.3 });
-    const cabMat = solidMaterial(this.U, { color: "#d9d2c8", roughness: 0.35, metalness: 0.45 });
-    const darkMat = solidMaterial(this.U, { color: "#16110e", roughness: 0.9 });
-    const glassMat = solidMaterial(this.U, { color: "#1b1f25", roughness: 0.1, metalness: 0.6 });
-    const tyreMat = solidMaterial(this.U, { color: "#0d0b0a", roughness: 0.95 });
+    const U = this.U;
+    const trailerMat = solidMaterial(U, { color: "#7b6f64", roughness: 0.5, metalness: 0.35 });
+    const ribMat = solidMaterial(U, { color: "#6b6056", roughness: 0.55, metalness: 0.4 });
+    const tankMat = solidMaterial(U, { color: "#8e8a82", roughness: 0.4, metalness: 0.8 });
+    const cabMat = solidMaterial(U, { color: "#cdc5b8", roughness: 0.3, metalness: 0.5 });
+    const darkMat = solidMaterial(U, { color: "#15100d", roughness: 0.85, metalness: 0.2 });
+    const glassMat = solidMaterial(U, { color: "#161a20", roughness: 0.08, metalness: 0.7 });
+    const tyreMat = solidMaterial(U, { color: "#0b0908", roughness: 0.95 });
+    const chromeMat = solidMaterial(U, { color: "#cfcac0", roughness: 0.22, metalness: 0.95 });
 
-    const trailer = new THREE.Mesh(new THREE.BoxGeometry(13.6, 2.7, 2.5), trailerMat);
-    trailer.position.set(-3.2, 2.65, 0);
-    T.add(this.withTwin(trailer, 4200, true));
-    const chassis = new THREE.Mesh(new THREE.BoxGeometry(13, 0.28, 1.1), darkMat);
-    chassis.position.set(-3.4, 1.15, 0);
-    T.add(this.withTwin(chassis, 0, true));
-
-    // cab-over tractor: extruded aero side profile
-    const s = new THREE.Shape();
-    s.moveTo(0, 0);
-    s.lineTo(0, 2.55);
-    s.quadraticCurveTo(0.1, 3.1, 0.8, 3.15);
-    s.lineTo(1.9, 3.15);
-    s.quadraticCurveTo(2.4, 3.1, 2.48, 2.6);
-    s.lineTo(2.62, 1.3);
-    s.lineTo(2.62, 0);
-    s.lineTo(0, 0);
-    const cabGeo = new THREE.ExtrudeGeometry(s, { depth: 2.45, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 2, curveSegments: 10 });
-    cabGeo.translate(0, 0, -1.225);
-    const cab = new THREE.Mesh(cabGeo, cabMat);
-    cab.position.set(3.9, 0.95, 0);
-    T.add(this.withTwin(cab, 2200, true, 30));
-    const windscreen = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.0, 2.2), glassMat);
-    windscreen.position.set(6.47, 3.15, 0);
-    windscreen.rotation.z = -0.12;
-    T.add(windscreen);
-    for (const z of [-1.27, 1.27]) {
-      const win = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.04), glassMat);
-      win.position.set(5.3, 3.2, z);
-      T.add(win);
-    }
-    const bumper = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.45, 2.5), darkMat);
-    bumper.position.set(6.62, 0.85, 0);
-    T.add(this.withTwin(bumper, 0, true));
-    for (const z of [-0.95, 0.95]) {
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.4), this.glow("#fff3dc"));
-      lamp.position.set(6.66, 1.25, z);
-      T.add(lamp);
-    }
-
-    // wheels: twelve tyres, spun by distance travelled
-    const wheelGeo = new THREE.CylinderGeometry(0.52, 0.52, 0.34, 22);
-    wheelGeo.rotateX(Math.PI / 2);
-    for (const x of [-8.6, -7.4, 3.9, 5.0, 6.0]) {
-      for (const z of [-1.08, 1.08]) {
-        const w = new THREE.Mesh(wheelGeo, tyreMat);
-        w.position.set(x, 0.52, z);
-        T.add(this.withTwin(w, 120, true, 40));
-        this.wheels.push(w);
+    // add a mesh to the rig; `points` > 0 also gives it a wireframe + dust twin
+    const part = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, points = -1) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      if (points >= 0) T.add(this.withTwin(m, points, true, 30));
+      else {
+        m.castShadow = true;
+        m.receiveShadow = true;
+        T.add(m);
       }
+      return m;
+    };
+    // many small boxes merged into one mesh: [w, h, d, x, y, z]
+    const boxes = (list: [number, number, number, number, number, number][]) =>
+      mergeGeometries(
+        list.map(([w, h, d, x, y, z]) => {
+          const g = new THREE.BoxGeometry(w, h, d).toNonIndexed();
+          g.translate(x, y, z);
+          return g;
+        }),
+      )!;
+    const lamp = (color: string, w: number, h: number, d: number, x: number, y: number, z: number) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), this.glow(color));
+      m.position.set(x, y, z);
+      T.add(m);
+    };
+
+    // ---- trailer: 13.6 m van, floor at 1.35, roof at 3.97
+    part(new THREE.BoxGeometry(13.6, 2.62, 2.5), trailerMat, -4.2, 2.66, 0, 4200);
+    part(boxes([[13.7, 0.1, 2.58, -4.2, 4.02, 0], [13.7, 0.14, 2.58, -4.2, 1.33, 0]]), ribMat, 0, 0, 0);
+    const ribs: [number, number, number, number, number, number][] = [];
+    for (let i = 0; i < 24; i++) for (const s of [-1, 1]) ribs.push([0.06, 2.5, 0.04, -10.75 + i * 0.56, 2.66, s * 1.265]);
+    part(boxes(ribs), ribMat, 0, 0, 0);
+    // roof marker lights, rear lamps, rear underride guard
+    for (const x of [-10.3, -6.1, -1.9, 2.1]) for (const s of [-1, 1]) lamp("#fff3dc", 0.16, 0.05, 0.05, x, 4.0, s * 1.2);
+    for (const s of [-1, 1]) lamp("#ff4a3a", 0.04, 0.22, 0.3, -11.03, 1.7, s * 1.0);
+    part(boxes([[0.14, 0.3, 2.3, -11.12, 1.02, 0], [0.12, 0.45, 0.1, -11.05, 1.2, 0.95], [0.12, 0.45, 0.1, -11.05, 1.2, -0.95]]), darkMat, 0, 0, 0);
+    // sliding tandem frame, main beams, landing gear
+    part(
+      boxes([
+        [3.0, 0.18, 2.3, -9.0, 1.2, 0],
+        [13.0, 0.22, 0.14, -4.0, 1.18, 0.55],
+        [13.0, 0.22, 0.14, -4.0, 1.18, -0.55],
+        [0.12, 1.08, 0.12, -1.2, 0.78, 0.95],
+        [0.12, 1.08, 0.12, -1.2, 0.78, -0.95],
+        [0.4, 0.06, 0.32, -1.2, 0.25, 0.95],
+        [0.4, 0.06, 0.32, -1.2, 0.25, -0.95],
+        [0.1, 0.1, 1.9, -1.2, 0.95, 0],
+        [0.7, 0.07, 0.07, -0.55, 0.95, 0.95],
+      ]),
+      darkMat,
+      0,
+      0,
+      0,
+    );
+    // mud flaps behind both tandems
+    part(boxes([[0.05, 0.7, 0.62, -10.3, 0.62, 1.15], [0.05, 0.7, 0.62, -10.3, 0.62, -1.15], [0.05, 0.7, 0.62, -0.32, 0.62, 1.1], [0.05, 0.7, 0.62, -0.32, 0.62, -1.1]]), darkMat, 0, 0, 0);
+
+    // ---- tractor chassis, fifth wheel, fuel tanks, steps, stacks
+    part(boxes([[7.5, 0.26, 0.14, 3.65, 1.05, 0.5], [7.5, 0.26, 0.14, 3.65, 1.05, -0.5], [0.12, 0.2, 1.1, 2.6, 1.05, 0], [0.12, 0.2, 1.1, 5.4, 1.05, 0]]), darkMat, 0, 0, 0);
+    part(new THREE.CylinderGeometry(0.55, 0.55, 0.1, 24), darkMat, 1.35, 1.3, 0);
+    const tank = new THREE.CylinderGeometry(0.33, 0.33, 1.5, 22);
+    tank.rotateZ(Math.PI / 2);
+    for (const s of [-1, 1]) {
+      part(tank, tankMat, 4.5, 0.86, s * 1.05);
+      part(boxes([[0.5, 0.05, 0.28, 5.4, 0.78, s * 1.18], [0.5, 0.05, 0.28, 5.4, 1.12, s * 1.18]]), darkMat, 0, 0, 0);
+      const stack = new THREE.CylinderGeometry(0.09, 0.09, 2.6, 14);
+      part(stack, chromeMat, 2.78, 2.75, s * 1.12);
+    }
+    part(new THREE.BoxGeometry(0.34, 2.4, 2.3), darkMat, 2.78, 2.65, 0); // cab extender behind the cab
+
+    // ---- cab: sleeper body with a swept roof fairing, raked windscreen
+    const cabShape = new THREE.Shape();
+    cabShape.moveTo(0, 1.05);
+    cabShape.lineTo(0, 3.7);
+    cabShape.quadraticCurveTo(0, 3.92, 0.26, 3.94);
+    cabShape.lineTo(1.1, 3.97);
+    cabShape.bezierCurveTo(1.7, 3.97, 2.0, 3.55, 2.35, 3.1);
+    cabShape.lineTo(2.9, 2.2);
+    cabShape.lineTo(2.95, 1.05);
+    cabShape.lineTo(0, 1.05);
+    const cabGeo = new THREE.ExtrudeGeometry(cabShape, { depth: 2.34, bevelEnabled: true, bevelSize: 0.07, bevelThickness: 0.07, bevelSegments: 3, curveSegments: 14 });
+    cabGeo.translate(0, 0, -1.17);
+    part(cabGeo, cabMat, 2.95, 0, 0, 2400);
+
+    const windscreen = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.04, 2.0), glassMat);
+    windscreen.position.set(2.95 + 2.64, 2.67, 0);
+    windscreen.rotation.z = 0.55;
+    T.add(windscreen);
+    // door window and small sleeper window, both sides
+    const doorWin = new THREE.Shape();
+    doorWin.moveTo(1.95, 2.35);
+    doorWin.lineTo(2.78, 2.35);
+    doorWin.lineTo(2.55, 3.05);
+    doorWin.lineTo(1.95, 3.45);
+    doorWin.lineTo(1.95, 2.35);
+    const doorGeo = new THREE.ExtrudeGeometry(doorWin, { depth: 0.03, bevelEnabled: false });
+    for (const s of [-1, 1]) {
+      const w = new THREE.Mesh(doorGeo, glassMat);
+      w.position.set(2.95, 0, s > 0 ? 1.255 : -1.285);
+      T.add(w);
+      const sl = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.42, 0.03), glassMat);
+      sl.position.set(2.95 + 0.75, 3.2, s * 1.265);
+      T.add(sl);
+    }
+    // door seams, handles, mirrors, roof marker lamps
+    const seams: [number, number, number, number, number, number][] = [];
+    for (const s of [-1, 1]) {
+      seams.push([0.025, 2.2, 0.02, 2.95 + 1.8, 2.2, s * 1.29], [0.025, 2.2, 0.02, 2.95 + 2.82, 2.1, s * 1.29], [1.0, 0.025, 0.02, 2.95 + 2.3, 1.12, s * 1.29]);
+      seams.push([0.2, 0.05, 0.04, 2.95 + 2.5, 2.0, s * 1.3]);
+    }
+    part(boxes(seams), darkMat, 0, 0, 0);
+    for (const s of [-1, 1]) {
+      part(boxes([[0.03, 0.03, 0.34, 5.62, 2.72, s * 1.37], [0.08, 0.62, 0.2, 5.62, 2.72, s * 1.55]]), darkMat, 0, 0, 0);
+      lamp("#ffb347", 0.06, 0.05, 0.1, 2.95 + 1.9, 3.78, s * 0.7);
+    }
+    lamp("#ffb347", 0.06, 0.05, 0.1, 2.95 + 1.9, 3.78, 0);
+
+    // ---- hood, grille, bumper, headlamps, fenders
+    const hood = new THREE.Shape();
+    hood.moveTo(0, 1.1);
+    hood.lineTo(0, 2.25);
+    hood.lineTo(1.0, 2.2);
+    hood.quadraticCurveTo(1.42, 2.16, 1.52, 1.85);
+    hood.lineTo(1.55, 1.1);
+    hood.lineTo(0, 1.1);
+    const hoodGeo = new THREE.ExtrudeGeometry(hood, { depth: 1.6, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 2, curveSegments: 10 });
+    hoodGeo.translate(0, 0, -0.8);
+    part(hoodGeo, cabMat, 5.9, 0, 0, 900);
+    const grille: [number, number, number, number, number, number][] = [[0.08, 0.95, 1.35, 7.46, 1.55, 0]];
+    for (let i = 0; i < 5; i++) grille.push([0.05, 0.05, 1.3, 7.51, 1.18 + i * 0.16, 0]);
+    part(boxes(grille), darkMat, 0, 0, 0);
+    part(boxes([[0.05, 0.9, 0.06, 7.51, 1.55, 0]]), chromeMat, 0, 0, 0);
+    part(boxes([[0.32, 0.4, 2.35, 7.62, 0.78, 0], [0.34, 0.07, 2.37, 7.62, 1.02, 0]]), darkMat, 0, 0, 0);
+    part(boxes([[0.34, 0.06, 2.37, 7.62, 1.08, 0]]), chromeMat, 0, 0, 0);
+    for (const s of [-1, 1]) {
+      lamp("#fff3dc", 0.06, 0.2, 0.4, 7.46, 1.62, s * 0.85);
+      part(boxes([[1.4, 0.1, 0.34, 6.55, 1.2, s * 1.0], [0.1, 0.4, 0.3, 7.3, 1.0, s * 1.0]]), cabMat, 0, 0, 0);
+    }
+
+    // ---- wheels: tandem drives and tandem trailer axles run duals, the steer axle runs singles
+    const rimLugs = (w: number, s: number) =>
+      mergeGeometries(
+        Array.from({ length: 8 }, (_, i) => {
+          const a = (i / 8) * Math.PI * 2;
+          const g = new THREE.BoxGeometry(0.045, 0.045, 0.04).toNonIndexed();
+          g.translate(Math.cos(a) * 0.14, Math.sin(a) * 0.14, s * (w / 2 + 0.045));
+          return g;
+        }),
+      )!;
+    const wheel = (x: number, z: number, w: number, outer: boolean) => {
+      const s = Math.sign(z);
+      const g = new THREE.Group();
+      g.position.set(x, 0.52, z);
+      const tyreGeo = new THREE.CylinderGeometry(0.52, 0.52, w, 26);
+      tyreGeo.rotateX(Math.PI / 2);
+      const tyre = new THREE.Mesh(tyreGeo, tyreMat);
+      g.add(this.withTwin(tyre, outer ? 120 : 0, true, 40));
+      const rimGeo = new THREE.CylinderGeometry(0.3, 0.3, w + 0.02, 24);
+      rimGeo.rotateX(Math.PI / 2);
+      g.add(new THREE.Mesh(rimGeo, chromeMat));
+      if (outer) {
+        const dishGeo = new THREE.CylinderGeometry(0.2, 0.2, w + 0.05, 20);
+        dishGeo.rotateX(Math.PI / 2);
+        g.add(new THREE.Mesh(dishGeo, darkMat));
+        const capGeo = new THREE.CylinderGeometry(0.085, 0.085, w + 0.08, 16);
+        capGeo.rotateX(Math.PI / 2);
+        g.add(new THREE.Mesh(capGeo, chromeMat));
+        g.add(new THREE.Mesh(rimLugs(w, s), chromeMat));
+      }
+      g.traverse((o) => ((o as THREE.Mesh).isMesh && ((o.castShadow = true), (o.receiveShadow = true))));
+      T.add(g);
+      this.wheels.push(g);
+    };
+    for (const s of [-1, 1]) {
+      for (const x of [-9.6, -8.4, 0.45, 1.7]) {
+        wheel(x, s * 1.12, 0.3, true);
+        wheel(x, s * 0.76, 0.3, false);
+      }
+      wheel(6.45, s * 1.1, 0.36, true);
     }
     this.scene.add(T);
   }
@@ -506,6 +644,7 @@ export class YardScene {
     boxLines(-8.6, 2.8, 2.25, 3.25, 0.45);
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(v, 3));
+    g.translate(-1, 0, 0);
     this.truck.add(new THREE.LineSegments(g, lineMaterial(this.U, this.truckFade)));
   }
 
