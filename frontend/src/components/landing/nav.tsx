@@ -11,7 +11,6 @@ import { site } from "@/lib/site";
 // In page order, so the bar reads like the story it jumps through.
 const links = [
   { label: "How it works", href: "#how-it-works" },
-  { label: "Impact", href: "#impact" },
   { label: "Platform", href: "#platform" },
   { label: "Scenarios", href: "#scenarios" },
 ];

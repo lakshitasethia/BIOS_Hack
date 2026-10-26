@@ -146,3 +146,82 @@ html.lenis body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Problems section — isometric blueprint drawings */
+.iso {
+  fill: none;
+  stroke: #a9aaa1;
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  transition:
+    stroke 0.35s,
+    fill 0.35s,
+    opacity 0.9s 0.5s,
+    stroke-dashoffset 1.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.iso-v {
+  fill: var(--color-paper);
+}
+.iso-hid {
+  stroke: #c3c4bb;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.iso-float {
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.problems:not([data-in]) .iso-v {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.problems:not([data-in]) .iso-hid {
+  opacity: 0;
+}
+.problems[data-in] .iso-v {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.problem:hover .iso,
+.problem:focus-visible .iso {
+  stroke: #2c2e29;
+}
+.problem:hover .iso-hid,
+.problem:focus-visible .iso-hid {
+  stroke: #8d8e85;
+}
+.problem:hover .iso-acc,
+.problem:focus-visible .iso-acc {
+  stroke: var(--color-signal-500);
+  fill: #ffe5d5;
+}
+.problem:hover .iso-hid.iso-acc,
+.problem:focus-visible .iso-hid.iso-acc {
+  fill: rgba(255, 91, 4, 0.08);
+}
+.problem:hover .iso-float,
+.problem:focus-visible .iso-float {
+  transform: translateY(-7px);
+}
+.problem:hover .iso-march,
+.problem:focus-visible .iso-march {
+  animation: iso-march 0.9s linear infinite;
+}
+.problem:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--color-signal-500);
+}
+@keyframes iso-march {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+.problem-grid {
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.07) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: radial-gradient(circle at center, #000 30%, transparent 75%);
+}
+.problem-ruler {
+  background-image: repeating-linear-gradient(to right, rgba(0, 0, 0, 0.25) 0 1px, transparent 1px 12px);
+}

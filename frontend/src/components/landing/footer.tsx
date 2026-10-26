@@ -9,7 +9,6 @@ import { onAnchorClick } from "@/components/landing/smooth-scroll";
 const LINKS = [
   { label: "Platform", href: "#platform" },
   { label: "How it works", href: "#how-it-works" },
-  { label: "Impact", href: "#impact" },
   { label: "Scenarios", href: "#scenarios" },
   { label: "Control tower", href: site.appHref },
   { label: "Privacy", href: "#" },

@@ -12,10 +12,9 @@ import { useEffect, useRef, useState } from "react";
  */
 
 const W = 1440;
-const H = 1200;
-const BAR_W = 20;
+const H = 1478;
+const BAR_W = 19;
 const BAR_H = 110;
-const FIELD_TOP = 24;
 
 const C = {
   paper: "#f8faf0",
@@ -27,36 +26,72 @@ const C = {
   node: "#072c2c",
 };
 
-// Deterministic jitter so server and client render the same field.
-function seeded(i: number) {
-  const x = Math.sin(i * 127.1 + 311.7) * 43758.5453;
-  return x - Math.floor(x);
-}
-
-const FIELD = Array.from({ length: 58 }, (_, i) => ({
-  x: Math.round((392 + i * 11.4 + (seeded(i) - 0.5) * 6) * 10) / 10,
-  y: FIELD_TOP + Math.round((seeded(i + 99) - 0.35) * 44),
-}));
-
-// Mark: two posts around the docking slot, then our zigzag, sitting flush on the section edge.
-const MARK_H = 92;
-const MARK_TOP = H - MARK_H;
-const MARK_X = 621;
-const POSTS = [MARK_X, MARK_X + 46];
-const SLOT_X = MARK_X + 22;
-const ZIG_X = MARK_X + 80;
-const ZIGZAG = [
-  `${ZIG_X},${H} ${ZIG_X + 20},${H} ${ZIG_X + 54},${MARK_TOP} ${ZIG_X + 34},${MARK_TOP}`,
-  `${ZIG_X + 34},${MARK_TOP} ${ZIG_X + 54},${MARK_TOP} ${ZIG_X + 88},${H} ${ZIG_X + 68},${H}`,
-  `${ZIG_X + 68},${H} ${ZIG_X + 88},${H} ${ZIG_X + 122},${MARK_TOP} ${ZIG_X + 102},${MARK_TOP}`,
+// The signal field: bars of mixed height, laid out in one band across the top.
+const FIELD: { x: number; y: number }[] = [
+  { x: 141, y: 56 },
+  { x: 129, y: 99 },
+  { x: 181, y: 56 },
+  { x: 211, y: 56 },
+  { x: 241, y: 56 },
+  { x: 172, y: 43 },
+  { x: 309, y: 56 },
+  { x: 285, y: 46 },
+  { x: 297, y: 87 },
+  { x: 345, y: 14 },
+  { x: 354, y: 56 },
+  { x: 381, y: 56 },
+  { x: 393, y: 71 },
+  { x: 429, y: 15 },
+  { x: 461, y: 56 },
+  { x: 491, y: 56 },
+  { x: 461, y: 87 },
+  { x: 521, y: 56 },
+  { x: 548, y: 78 },
+  { x: 498, y: 1 },
+  { x: 581, y: 56 },
+  { x: 589, y: 43 },
+  { x: 621, y: 36 },
+  { x: 644, y: 56 },
+  { x: 679, y: 76 },
+  { x: 701, y: 56 },
+  { x: 690, y: 68 },
+  { x: 732, y: 92 },
+  { x: 819, y: 36 },
+  { x: 781, y: 56 },
+  { x: 753, y: 6 },
+  { x: 813, y: 68 },
+  { x: 841, y: 56 },
+  { x: 881, y: 56 },
+  { x: 898, y: 13 },
+  { x: 945, y: 56 },
+  { x: 981, y: 56 },
+  { x: 977, y: 46 },
+  { x: 1041, y: 56 },
+  { x: 1029, y: 69 },
+  { x: 1081, y: 56 },
+  { x: 1091, y: 46 },
+  { x: 1141, y: 36 },
+  { x: 1118, y: 63 },
+  { x: 1181, y: 66 },
+  { x: 1213, y: 15 },
+  { x: 1221, y: 56 },
+  { x: 1003, y: 94 },
+  { x: 1261, y: 56 },
+  { x: 1298, y: 56 },
+  { x: 937, y: 69 },
+  { x: 421, y: 56 },
+  { x: 873, y: 85 },
 ];
-// The docked rider stands taller than the posts, its foot just above the edge.
-const DOCK = { x: SLOT_X + BAR_W / 2, y: H - 10 - BAR_H / 2 };
 
-// Side panels start beside the mark and slide out into the content edges (clipped there).
-const CONTENT = { left: 126, right: W - 126 };
-const PANEL_W = 264;
-const PANEL_SLIDE = 40;
+// Mark: two posts around the docking slot, then three leaning bars, flush on the section edge.
+const MARK_H = 111;
+const MARK_TOP = H - MARK_H;
+const POSTS = [615, 671];
+const ZIGZAG = [0, 30, 60].map((o) => `${700 + o},${H} ${720 + o},${H} ${765 + o},${MARK_TOP} ${745 + o},${MARK_TOP}`);
+
+// Side panels sit beside the mark and ease apart once the orange rider docks.
+const PANEL_W = 595;
+const PANEL_SLIDE = 80;
 const PANEL_EASE = { transition: "transform 900ms cubic-bezier(0.16, 1, 0.3, 1)" } as const;
 
 type Rider = {
@@ -68,56 +103,64 @@ type Rider = {
   d: (cx: number, cy: number) => string;
 };
 
-// Each path starts at its bar's centre, so the rider leaves exactly from its resting place.
+// Routes: dotted lanes that leave the field, cross over one another in the gap between the
+// first two captions, and run out to the edges. The captions sit in the middle column and
+// every crossing happens in the open space between them. Each path starts at the foot of its
+// bar and the rider follows it head first, so it leaves exactly from its resting place.
 // `lag` holds a rider back behind the scroll line so they leave one after another.
 const RIDERS: Rider[] = [
   {
-    home: 12,
+    home: 51,
     tone: "lime",
     lag: 0,
-    d: (x, y) => `M${x} ${y} L${x} ${y + 90} C${x} 340, 520 370, 520 480 L520 660 C520 720, 470 732, -420 732`,
+    d: () => "M430 166V259.611C430 302.154 456.917 340.039 497.09 354.04L896.91 493.383C937.083 507.384 964 545.27 964 587.813V741C964 776.07 992.43 804.5 1027.5 804.5H1440",
   },
   {
-    home: 19,
+    home: 50,
     tone: "lime",
     lag: 70,
-    d: (x, y) => `M${x} ${y} L${x} ${y + 120} C${x} 330, 905 350, 905 480 L905 660 C905 712, 940 722, ${W + 420} 722`,
-  },
-  {
-    home: 38,
-    tone: "lime",
-    lag: 140,
-    d: (x, y) => `M${x} ${y} L${x} ${y + 100} C${x} 340, 556 360, 556 490 L556 670 C556 726, 520 750, -420 750`,
+    d: () => "M946.5 179V273.897C946.5 315.809 920.364 353.274 881.029 367.746L541.471 492.677C502.136 507.149 476 544.614 476 586.526V691V767.5C476 822.728 431.228 867.5 376 867.5H0",
   },
   {
     home: 47,
-    tone: "lime",
-    lag: 210,
-    d: (x, y) => `M${x} ${y} L${x} ${y + 80} C${x} 310, 940 370, 940 490 L940 670 C940 724, 980 740, ${W + 420} 740`,
-  },
-  {
-    home: 31,
     tone: "orange",
     lag: 40,
-    d: (x, y) =>
-      `M${x} ${y} L${x} ${y + 140} C${x} 430, 790 480, 790 640 L790 905 C790 990, ${DOCK.x} 1000, ${DOCK.x} 1050 L${DOCK.x} ${DOCK.y}`,
+    arrive: H - 20,
+    d: () =>
+      "M1013 206V315.552C1013 326.771 1011.11 337.909 1007.42 348.502L907.084 635.998C903.388 646.591 901.5 657.729 901.5 668.948V1109.5C901.5 1164.73 856.728 1209.5 801.5 1209.5H753.5C698.272 1209.5 653.5 1254.27 653.5 1309.5V1367",
+  },
+  {
+    home: 52,
+    tone: "lime",
+    lag: 140,
+    d: () => "M882 195V288.411C882 306.881 887.115 324.99 896.779 340.731L1021.22 543.427C1030.88 559.168 1036 577.277 1036 595.747V791.735C1036 829.713 1066.79 860.5 1104.76 860.5H1440",
+  },
+  {
+    home: 18,
+    tone: "lime",
+    lag: 210,
+    d: () => "M557 188V288.567C557 306.939 551.939 324.956 542.372 340.64L418.628 543.518C409.061 559.203 404 577.219 404 595.591V691.735V810C404 865.228 359.228 910 304 910H0",
   },
 ];
 
 const RIDER_HOMES = new Set(RIDERS.map((r) => r.home));
 
+// Pill-shaped gates on the four side lanes (centre x, centre y).
 const NODES = [
-  [520, 660],
-  [556, 670],
-  [905, 660],
-  [940, 670],
+  [476, 695.5],
+  [404, 695.5],
+  [964, 694.5],
+  [1036, 694.5],
 ];
 
+// Caption column, in viewBox units (centred on x = 720): 310 wide, one gap between each.
+const CAPTION_W = 310;
+
 const CAPTIONS = [
-  { y: 310, text: "Monsoon alerts land on highways carrying your trucks" },
-  { y: 480, text: "Port gates jam for hours and quietly delay your orders" },
-  { y: 650, text: "Suppliers slip by days before anyone connects the dots" },
-  { y: 860, text: "Stock runs out when every fix is already expensive" },
+  { y: 339, text: "Monsoon alerts land on highways carrying your trucks" },
+  { y: 594, text: "Port gates jam for hours and quietly delay your orders" },
+  { y: 861, text: "Suppliers slip by days before anyone connects the dots" },
+  { y: 1128, text: "Stock runs out when every fix is already expensive" },
 ];
 
 // Path sampled into a lookup table. The key advances with vertical travel, and with
@@ -215,7 +258,7 @@ export function SignalField() {
         const words = wordRefs.current[ci];
         const lp = clamp01((line - (c.y - 150)) / 190) * words.length;
         words.forEach((w, wi) => {
-          if (w) w.style.opacity = String(0.2 + 0.8 * clamp01(lp - wi));
+          if (w) w.style.opacity = String(0.22 + 0.78 * clamp01(lp - wi));
         });
       });
 
@@ -270,7 +313,11 @@ export function SignalField() {
         </h2>
       </div>
 
-      <div ref={stageRef} className="relative mx-auto mt-12 w-full max-w-[1440px]" style={{ aspectRatio: `${vbW} / ${H}` }}>
+      <div
+        ref={stageRef}
+        className="relative mx-auto mt-12 w-full max-w-[1440px]"
+        style={{ aspectRatio: `${vbW} / ${H}`, containerType: "inline-size" }}
+      >
         <svg viewBox={`${vbX} 0 ${vbW} ${H}`} className="absolute inset-0 size-full overflow-visible" aria-hidden>
           {RIDERS.map((r, i) => {
             const b = FIELD[r.home];
@@ -280,7 +327,7 @@ export function SignalField() {
                 ref={(el) => {
                   pathRefs.current[i] = el;
                 }}
-                d={r.d(b.x + BAR_W / 2, b.y + BAR_H / 2)}
+                d={r.d(b.x + BAR_W / 2, b.y + BAR_H)}
                 fill="none"
                 stroke={C.line}
                 strokeWidth={1}
@@ -291,18 +338,12 @@ export function SignalField() {
           })}
 
           {NODES.map(([x, y], i) => (
-            <rect
-              key={i}
-              x={x - 11}
-              y={y - 3}
-              width={22}
-              height={6}
-              rx={3}
-              fill={C.paper}
-              stroke={C.node}
-              strokeWidth={1}
-              vectorEffect="non-scaling-stroke"
-            />
+            <g key={i} stroke={C.node} strokeWidth={1} vectorEffect="non-scaling-stroke">
+              <rect x={x - 20} y={y - 3.5} width={40} height={7} rx={3.5} fill={C.paper} vectorEffect="non-scaling-stroke" />
+              <line x1={x - 20} y1={y - 2} x2={x - 20} y2={y + 2} vectorEffect="non-scaling-stroke" />
+              <line x1={x + 20} y1={y - 2} x2={x + 20} y2={y + 2} vectorEffect="non-scaling-stroke" />
+              <line x1={x - 9} y1={y} x2={x + 9} y2={y} strokeOpacity={0.55} vectorEffect="non-scaling-stroke" />
+            </g>
           ))}
 
           {FIELD.map((b, i) =>
@@ -324,15 +365,15 @@ export function SignalField() {
 
           <defs>
             <clipPath id="signal-content">
-              <rect x={CONTENT.left} y={0} width={CONTENT.right - CONTENT.left} height={H} />
+              <rect x={0} y={0} width={W} height={H} />
             </clipPath>
           </defs>
           <g clipPath="url(#signal-content)">
             <g ref={panelLeftRef} style={PANEL_EASE}>
-              <TruckPanel x={MARK_X - 120 - PANEL_W} />
+              <TruckPanel x={0} mirrored />
             </g>
             <g ref={panelRightRef} style={PANEL_EASE}>
-              <TruckPanel x={ZIG_X + 122 + 120} mirrored />
+              <TruckPanel x={W - PANEL_W} />
             </g>
           </g>
 
@@ -350,10 +391,10 @@ export function SignalField() {
                   riderRefs.current[i] = el;
                 }}
                 x={-BAR_W / 2}
-                y={-BAR_H / 2}
+                y={-BAR_H}
                 width={BAR_W}
                 height={BAR_H}
-                transform={`translate(${b.x + BAR_W / 2} ${b.y + BAR_H / 2})`}
+                transform={`translate(${b.x + BAR_W / 2} ${b.y + BAR_H})`}
                 style={{ fill: r.tone === "orange" ? C.orange : C.lime }}
                 stroke={r.tone === "orange" ? "none" : C.line}
                 strokeOpacity={0.6}
@@ -367,8 +408,17 @@ export function SignalField() {
         {CAPTIONS.map((c, ci) => (
           <p
             key={ci}
-            className="absolute w-[min(17rem,70%)] -translate-x-1/2 -translate-y-1/2 text-center text-base font-medium leading-snug md:text-lg"
-            style={{ left: pct(720), top: `${(c.y / H) * 100}%` }}
+            className="absolute -translate-x-1/2 -translate-y-1/2 text-center font-medium text-[#4b5148]"
+            style={{
+              left: pct(720),
+              top: `${(c.y / H) * 100}%`,
+              // the column scales with the stage so lines never reach the text, at any width
+              width: narrow ? "68%" : `${(CAPTION_W / vbW) * 100}%`,
+              fontSize: narrow ? "1rem" : "clamp(0.8125rem, 1.25cqw, 1.1875rem)",
+              lineHeight: 1.4,
+              letterSpacing: "-0.005em",
+              textShadow: "0 0 10px #f8faf0, 0 0 18px #f8faf0",
+            }}
           >
             {c.text.split(" ").map((word, wi) => (
               <span
@@ -376,7 +426,7 @@ export function SignalField() {
                 ref={(el) => {
                   wordRefs.current[ci][wi] = el;
                 }}
-                style={{ opacity: 0.2 }}
+                style={{ opacity: 0.22 }}
               >
                 {word}{" "}
               </span>
@@ -392,7 +442,7 @@ function Mark({ fill }: { fill: string }) {
   return (
     <g style={{ fill }}>
       {POSTS.map((x) => (
-        <rect key={x} x={x} y={MARK_TOP} width={18} height={MARK_H} />
+        <rect key={x} x={x} y={MARK_TOP} width={20} height={MARK_H} />
       ))}
       {ZIGZAG.map((pts) => (
         <polygon key={pts} points={pts} />
@@ -401,26 +451,48 @@ function Mark({ fill }: { fill: string }) {
   );
 }
 
-// Top-down wireframe of a truck (cab + trailer + axles) on a flat panel, flush with the edge.
+// Side-on strip of a truck and the traffic queued behind it, on a flat panel flush with the
+// edge. Drawn for the right-hand side; the left panel is its mirror image.
+const QUEUE: [number, number][] = [
+  [328, 4],
+  [353, 8],
+  [382, 15],
+  [418, 11],
+  [456, 8],
+  [490, 12],
+  [522, 6],
+  [553, 10],
+  [577, 5],
+];
+
 function TruckPanel({ x, mirrored = false }: { x: number; mirrored?: boolean }) {
-  const top = H - MARK_H;
-  const cy = top + MARK_H / 2;
-  const cabX = mirrored ? x + PANEL_W - 70 : x + 30;
-  const trailerX = mirrored ? x + 22 : x + 82;
+  const cy = MARK_TOP + MARK_H / 2;
+  const top = cy - 20;
+  // vehicle: body, centre tick, and a rail above and below
+  const vehicle = (vx: number, w: number, rail: number) => (
+    <g key={vx}>
+      <rect x={x + vx} y={top} width={w} height={40} />
+      <line x1={x + vx + w / 2 - 2.5} y1={cy} x2={x + vx + w / 2 + 2.5} y2={cy} />
+      {w >= 6 && (
+        <>
+          <line x1={x + vx + (w - rail) / 2} y1={cy - 24} x2={x + vx + (w + rail) / 2} y2={cy - 24} strokeWidth={2} />
+          <line x1={x + vx + (w - rail) / 2} y1={cy + 23} x2={x + vx + (w + rail) / 2} y2={cy + 23} strokeWidth={2} />
+        </>
+      )}
+    </g>
+  );
   return (
-    <g stroke={C.line} strokeWidth={1} fill="none" vectorEffect="non-scaling-stroke">
-      <rect x={x} y={top} width={PANEL_W} height={MARK_H} fill={C.bar} stroke="none" />
-      <rect x={cabX} y={cy - 18} width={40} height={36} />
-      <rect x={trailerX} y={cy - 18} width={160} height={36} />
-      {[cabX + 8, trailerX + 30, trailerX + 110].map((ax) => (
-        <g key={ax}>
-          <line x1={ax} y1={cy - 26} x2={ax + 24} y2={cy - 26} strokeWidth={2} />
-          <line x1={ax} y1={cy + 26} x2={ax + 24} y2={cy + 26} strokeWidth={2} />
-        </g>
-      ))}
-      <line x1={cabX + 16} y1={cy} x2={cabX + 24} y2={cy} />
-      <line x1={trailerX + 76} y1={cy} x2={trailerX + 84} y2={cy} />
-      <rect x={mirrored ? x + PANEL_W - 14 : x + 10} y={cy - 18} width={4} height={36} />
+    <g
+      transform={mirrored ? `translate(${2 * x + PANEL_W} 0) scale(-1 1)` : undefined}
+      stroke={C.line}
+      strokeWidth={1}
+      fill="none"
+      vectorEffect="non-scaling-stroke"
+    >
+      <rect x={x} y={MARK_TOP} width={PANEL_W} height={MARK_H} fill={C.bar} stroke="none" />
+      {vehicle(25, 215, 108)}
+      {vehicle(260, 47, 24)}
+      {QUEUE.map(([vx, w]) => vehicle(vx, w, Math.max(2, w - 4)))}
     </g>
   );
 }
