@@ -31,6 +31,7 @@ export function Hero() {
   const wordRefs = useRef<(HTMLSpanElement | null)[][]>(BEATS.map(() => []));
   const ctaRef = useRef<HTMLDivElement>(null);
   const cueRef = useRef<HTMLDivElement>(null);
+  const blurRef = useRef<HTMLDivElement>(null);
 
   // Settle in from slightly closer as the intro parts.
   useEffect(() => {
@@ -83,6 +84,8 @@ export function Hero() {
         ctaRef.current.style.pointerEvents = cta > 0.5 ? "auto" : "none";
       }
       if (cueRef.current) cueRef.current.style.opacity = String(1 - span(p, [0, 0.04]));
+      // foreground motion blur: builds as the truck pulls away, eases off once the camera cranes up
+      if (blurRef.current) blurRef.current.style.opacity = String(span(p, [0, 0.03]) * (1 - span(p, [0.14, 0.28])));
     };
 
     const size = () => scene?.resize(canvas.clientWidth, canvas.clientHeight);
@@ -134,6 +137,13 @@ export function Hero() {
         <div ref={stageRef} className="absolute inset-0 will-change-transform">
           <canvas ref={canvasRef} aria-hidden className="block size-full" />
         </div>
+
+        <div
+          ref={blurRef}
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[34%] backdrop-blur-[7px]"
+          style={{ opacity: 0, maskImage: "linear-gradient(to top, #000 55%, transparent)", WebkitMaskImage: "linear-gradient(to top, #000 55%, transparent)" }}
+        />
 
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_60%_at_50%_70%,transparent_40%,rgba(0,0,0,0.35))]" />
 

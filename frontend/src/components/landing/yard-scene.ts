@@ -266,7 +266,7 @@ export class YardScene {
     // camera path, relative to the truck — keyframed by scroll progress
     const keys: [number, [number, number, number], [number, number, number], number][] = [
       [0.0, [-1.8, 2.3, 27], [-1.8, 2.2, 0], 30],
-      [0.1, [-1.2, 2.6, 25], [-1.2, 2.3, 0], 30],
+      [0.1, [-1.8, 2.3, 27], [-1.8, 2.2, 0], 30],
       [0.26, [15, 13, 27], [0, 1.6, 0], 34],
       [0.42, [24, 25, 31], [2, 0, -5], 36],
       [0.56, [22, 15, 19], [-1, 1.8, 0], 34],
@@ -616,6 +616,8 @@ export class YardScene {
       rise(this.withTwin(pole, 40, false), 0.08 + (x + 30) / 1000);
     }
 
+    this.buildRoadside();
+
     // the far industrial skyline
     for (let k = 0; k < 14; k++) {
       const w = 10 + Math.random() * 22;
@@ -624,6 +626,51 @@ export class YardScene {
       sk.position.set(-60 + k * 26, 0, -175 - Math.random() * 30);
       rise(this.withTwin(sk, 0, false), 0.06);
     }
+  }
+
+
+  // Foreground that sells the speed: a fence line, bushes and lane dashes close to the camera,
+  // so the truck visibly drives past them from the first scroll.
+  private buildRoadside() {
+    const merge = (parts: { w: number; h: number; d: number; x: number; y: number; z: number }[]) =>
+      mergeGeometries(
+        parts.map(({ w, h, d, x, y, z }) => {
+          const g = new THREE.BoxGeometry(w, h, d).toNonIndexed();
+          g.translate(x, y, z);
+          return g;
+        }),
+      )!;
+    // like the rest of the yard, each layer grows out of the ground once the truck is moving
+    const add = (geo: THREE.BufferGeometry, mat: THREE.Material, edgeAngle: number, at: number) => {
+      const m = this.withTwin(new THREE.Mesh(geo, mat), 0, false, edgeAngle);
+      m.castShadow = false;
+      m.scale.y = 0.0001;
+      this.risers.push({ obj: m, at });
+      this.scene.add(m);
+    };
+
+    // fence: posts every 2.4 m with two rails
+    const posts: { w: number; h: number; d: number; x: number; y: number; z: number }[] = [];
+    for (let x = -70; x <= 260; x += 2.4) posts.push({ w: 0.1, h: 1.35, d: 0.1, x, y: 0.675, z: 16 });
+    posts.push({ w: 340, h: 0.07, d: 0.05, x: 95, y: 1.05, z: 16 }, { w: 340, h: 0.07, d: 0.05, x: 95, y: 0.55, z: 16 });
+    add(merge(posts), solidMaterial(this.U, { color: "#2a1f19", roughness: 0.95 }), 40, 0.045);
+
+    // bushes: clumps of low blobs along the fence, deterministic so every load matches
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const blobs: THREE.BufferGeometry[] = [];
+    for (let x = -70; x <= 260; x += 1.4 + rnd() * 2.2) {
+      const g = new THREE.IcosahedronGeometry(0.5 + rnd() * 0.45, 1);
+      g.scale(1.25, 0.85 + rnd() * 0.4, 1);
+      g.translate(x, 0.45, 14.8 + rnd() * 2.2);
+      blobs.push(g);
+    }
+    add(mergeGeometries(blobs)!, solidMaterial(this.U, { color: "#3b3a22", roughness: 1 }), 45, 0.07);
+
+    // lane dashes along both road edges
+    const dashes: { w: number; h: number; d: number; x: number; y: number; z: number }[] = [];
+    for (let x = -70; x <= 260; x += 6) for (const z of [-3.2, 3.2]) dashes.push({ w: 2.4, h: 0.02, d: 0.14, x, y: 0.02, z });
+    add(merge(dashes), solidMaterial(this.U, { color: "#cdb9a2", roughness: 0.9 }), 40, 0.02);
   }
 
   // Internal structure for the trailer's twin: cross-section frames and nested boxes,
@@ -739,7 +786,7 @@ export class YardScene {
     this.U.uDissolve.value = 1;
 
     // drive
-    const dist = 46 * span(p, 0.03, 0.7);
+    const dist = 46 * span(p, 0, 0.7) + 18 * smooth(span(p, 0, 0.3));
     this.truck.position.x = dist;
     this.wheels.forEach((w) => (w.rotation.z = -dist / 0.52));
     this.U.uOrigin.value.set(dist - 2, 0);
